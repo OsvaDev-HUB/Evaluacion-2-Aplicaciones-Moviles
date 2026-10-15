@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -53,6 +54,11 @@ class HomeViewModel(
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
     val messages = _messages.receiveAsFlow()
     val linkState: StateFlow<LinkState> = link.state
+
+    /** Primer nombre del usuario para el saludo del Inicio. */
+    val firstName: StateFlow<String> = session.profile
+        .map { it.name.trim().substringBefore(' ') }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     // null mientras se lee la bandera; así no se muestra la bienvenida antes de tiempo.
     val introDone: StateFlow<Boolean?> = session.introDone

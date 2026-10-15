@@ -61,9 +61,19 @@ class SessionRepository(
         prefs[THEME_MODE]?.let { saved -> ThemeMode.entries.firstOrNull { it.name == saved } } ?: ThemeMode.SYSTEM
     }
 
+    /** true si el usuario marcó "No volver a mostrar" en la bienvenida. */
+    val welcomeHidden: Flow<Boolean> = dataStore.data.map { it[WELCOME_HIDDEN] ?: false }
+
+    /** La bienvenida sale en cada apertura, salvo que el usuario la haya ocultado. */
     suspend fun resolveStartDestination(): StartDestination {
         val prefs = dataStore.data.first()
-        if (prefs[ONBOARDING_DONE] != true) return StartDestination.Onboarding
+        if (prefs[WELCOME_HIDDEN] != true) return StartDestination.Onboarding
+        return resolveAfterWelcome()
+    }
+
+    /** A dónde ir después de la bienvenida: login (con o sin huella) o directo al Inicio. */
+    suspend fun resolveAfterWelcome(): StartDestination {
+        val prefs = dataStore.data.first()
         val token = prefs[AUTH_TOKEN]?.let(cipher::decrypt)
         val expiry = prefs[TOKEN_EXPIRY] ?: 0L
         val validSession = token != null && expiry > System.currentTimeMillis()
@@ -74,11 +84,9 @@ class SessionRepository(
         }
     }
 
-    suspend fun completeOnboarding(notificationsGranted: Boolean) {
-        dataStore.edit {
-            it[ONBOARDING_DONE] = true
-            it[NOTIFICATIONS_ENABLED] = notificationsGranted
-        }
+    // El permiso de notificaciones ya no se pide aquí: se pide después del primer login.
+    suspend fun setWelcomeHidden(hidden: Boolean) {
+        dataStore.edit { it[WELCOME_HIDDEN] = hidden }
     }
 
     suspend fun login(email: String, password: String) {
@@ -180,7 +188,7 @@ class SessionRepository(
         const val BLOCK_MILLIS = 30_000L
         val SESSION_DURATION = TimeUnit.DAYS.toMillis(7)
 
-        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val WELCOME_HIDDEN = booleanPreferencesKey("welcome_hidden")
         val AUTH_TOKEN = stringPreferencesKey("auth_token_encrypted")
         val TOKEN_EXPIRY = longPreferencesKey("auth_token_expiry")
         val USER_NAME = stringPreferencesKey("user_name")

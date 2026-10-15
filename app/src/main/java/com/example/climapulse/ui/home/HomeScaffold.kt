@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -196,8 +197,18 @@ private fun ClimaPulseNavigation(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
 
+    // Barra en el turquesa de la marca para que no se confunda con las tarjetas grises.
+    // En tema claro: fondo turquesa oscuro; en tema oscuro: turquesa profundo.
+    val colors = MaterialTheme.colorScheme
+    val isDark = colors.surface.luminance() < 0.5f
+    val barColor = if (isDark) colors.primaryContainer else colors.primary
+    val indicator = if (isDark) colors.primary else colors.primaryContainer
+    val selectedIcon = if (isDark) colors.onPrimary else colors.onPrimaryContainer
+    val selectedText = if (isDark) colors.onPrimaryContainer else colors.onPrimary
+    val idle = (if (isDark) colors.onPrimaryContainer else colors.onPrimary).copy(alpha = 0.78f)
+
     NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = barColor,
         modifier = Modifier.tourTarget(TourKeys.NAVIGATION)
     ) {
         tabs.forEach { tab ->
@@ -208,9 +219,11 @@ private fun ClimaPulseNavigation(navController: NavHostController) {
                 icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },
                 label = { Text(tab.label) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.primary
+                    selectedIconColor = selectedIcon,
+                    indicatorColor = indicator,
+                    selectedTextColor = selectedText,
+                    unselectedIconColor = idle,
+                    unselectedTextColor = idle
                 )
             )
         }

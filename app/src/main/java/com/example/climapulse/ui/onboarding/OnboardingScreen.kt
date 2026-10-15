@@ -1,17 +1,16 @@
 package com.example.climapulse.ui.onboarding
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,14 +18,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Sensors
+import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,8 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -46,29 +44,31 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.climapulse.R
 import com.example.climapulse.data.SessionRepository
+import com.example.climapulse.data.StartDestination
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
 import com.example.climapulse.ui.appViewModelFactory
 import com.example.climapulse.ui.components.ClimaLogo
-import com.example.climapulse.ui.components.IconBadge
+import com.example.climapulse.ui.components.CookieShape
 import com.example.climapulse.ui.components.PrimaryButton
-import com.example.climapulse.ui.components.PulseRings
-import com.example.climapulse.ui.components.SecondaryButton
 import com.example.climapulse.ui.theme.ClimaShapes
-import com.example.climapulse.data.Metric
-import com.example.climapulse.ui.home.accent
-import com.example.climapulse.ui.home.icon
 import com.example.climapulse.ui.theme.Dimens
-import com.example.climapulse.ui.theme.Teal
-import com.example.climapulse.ui.theme.Yellow
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel(private val session: SessionRepository) : ViewModel() {
-    fun finish(notificationsGranted: Boolean, onDone: () -> Unit) {
+    // Casilla "No volver a mostrar".
+    var hideNextTime by mutableStateOf(false)
+
+    /** Guarda la casilla y avisa a dónde seguir (login o Inicio). */
+    fun finish(onDone: (StartDestination) -> Unit) {
         viewModelScope.launch {
-            // Bandera persistida en DataStore: el onboarding no vuelve a mostrarse.
-            session.completeOnboarding(notificationsGranted)
-            onDone()
+            session.setWelcomeHidden(hideNextTime)
+            onDone(session.resolveAfterWelcome())
         }
     }
 
@@ -77,62 +77,78 @@ class OnboardingViewModel(private val session: SessionRepository) : ViewModel() 
     }
 }
 
+/** Datos de cada página. La forma de fondo cambia de figura y color según la página. */
 private data class OnboardingPage(
     val title: String,
     val body: String,
-    // Función porque el color cambia entre tema claro y oscuro.
-    val accent: @Composable () -> Color,
+    val lobes: Int,
+    val depth: Float,
     val illustration: @Composable () -> Unit
 )
 
 private val pages = listOf(
     OnboardingPage(
-        title = "Tu ambiente, en un vistazo",
-        body = "ClimaPulse mide temperatura, humedad y luz para que sepas al instante si tu espacio es cómodo.",
-        accent = { Teal }
+        title = "Tu espacio, en un solo vistazo",
+        body = "Temperatura, humedad y luz en tiempo real. Un teléfono mide y otro lo monitorea por WiFi.",
+        lobes = 9,
+        depth = 0.06f
     ) { ClimaLogo(size = 112.dp) },
     OnboardingPage(
-        title = "Sugerencias que sí sirven",
-        body = "Revisa tendencias del día y recibe recomendaciones simples: ventilar, acercarte a la luz o ajustar la temperatura.",
-        accent = { Yellow }
+        title = "Sabes cuándo actuar",
+        body = "Si una lectura sale del rango ideal, la forma se vuelve amarilla y te sugerimos qué hacer: ventilar, encender la lámpara o pausar.",
+        lobes = 5,
+        depth = 0.09f
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Metric.entries.forEach { metric -> IconBadge(icon = metric.icon, tint = metric.accent, size = 60.dp) }
-        }
+        Icon(
+            Icons.Rounded.WarningAmber,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            modifier = Modifier.size(88.dp)
+        )
     },
     OnboardingPage(
-        title = "Te avisamos solo cuando importa",
-        body = "Activa las notificaciones para enterarte cuando una lectura salga de tu rango ideal. Nada de spam: puedes cambiarlo en Ajustes.",
-        accent = { Teal }
-    ) { IconBadge(icon = Icons.Rounded.NotificationsActive, tint = Teal, size = 104.dp) }
+        title = "Dos teléfonos, un sistema",
+        body = "Conéctalos con un PIN de 6 dígitos. Las lecturas viajan cifradas y quedan guardadas en el teléfono.",
+        lobes = 12,
+        depth = 0.05f
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Sensors, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(52.dp))
+            Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp).size(28.dp))
+            Icon(Icons.Rounded.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(52.dp))
+        }
+    }
 )
 
+/** Bienvenida: aparece después del splash en cada apertura, salvo que se marque "No volver a mostrar". */
 @Composable
 fun OnboardingScreen(
-    onFinished: () -> Unit,
+    onFinished: (StartDestination) -> Unit,
     viewModel: OnboardingViewModel = viewModel(factory = OnboardingViewModel.Factory)
 ) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
-    val isLastPage = pagerState.currentPage == pages.lastIndex
+    val currentPage = pagerState.currentPage
+    val isLastPage = currentPage == pages.lastIndex
+    val colors = MaterialTheme.colorScheme
 
-    // El permiso se pide en contexto, en la página que explica para qué sirve.
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> viewModel.finish(granted, onFinished) }
-
-    fun requestNotifications() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            viewModel.finish(notificationsGranted = true, onDone = onFinished)
-        }
-    }
+    // Color de la forma por página: turquesa (todo bien), amarillo (revisar), verde gris (enlace).
+    val shapeColor by animateColorAsState(
+        when (currentPage) {
+            0 -> colors.primaryContainer
+            1 -> colors.tertiaryContainer
+            else -> colors.secondaryContainer
+        },
+        label = "shapeColor"
+    )
+    val depth by animateFloatAsState(pages[currentPage].depth, spring(dampingRatio = 0.5f, stiffness = 120f), label = "shapeDepth")
+    // La forma gira mientras se desliza el dedo entre páginas.
+    val rotation = (currentPage + pagerState.currentPageOffsetFraction) * 40f
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(colors.background)
             .safeDrawingPadding()
             .padding(horizontal = Dimens.ScreenPadding, vertical = 12.dp)
     ) {
@@ -140,37 +156,57 @@ fun OnboardingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 48.dp),
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.End
         ) {
-            ClimaLogo(size = 32.dp)
-            Spacer(Modifier.width(10.dp))
-            Text("ClimaPulse", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             if (!isLastPage) {
-                TextButton(onClick = { scope.launch { pagerState.animateScrollToPage(pages.lastIndex) } }) {
-                    Text("Saltar")
-                }
+                TextButton(onClick = { viewModel.finish(onFinished) }) { Text("Saltar") }
             }
         }
 
-        HorizontalPager(
-            state = pagerState,
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            // Capa de atrás: una sola forma que cambia de figura y color.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+                    .fillMaxWidth(0.78f)
+                    .aspectRatio(1f)
+                    .clip(CookieShape(lobes = pages[currentPage].lobes, depth = depth, rotationDegrees = rotation))
+                    .background(shapeColor)
+            )
+            // Capa de adelante: ilustración y textos de cada página.
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { index ->
+                OnboardingPageContent(pages[index])
+            }
+        }
+
+        PageIndicator(count = pages.size, current = currentPage)
+        Spacer(Modifier.height(12.dp))
+        // Toda la fila marca o desmarca la casilla (área táctil grande).
+        Row(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-        ) { index -> OnboardingPageContent(pages[index]) }
-
-        PageIndicator(count = pages.size, current = pagerState.currentPage)
-        Spacer(Modifier.height(24.dp))
-
+                .heightIn(min = 48.dp)
+                .toggleable(
+                    value = viewModel.hideNextTime,
+                    role = Role.Checkbox,
+                    onValueChange = { viewModel.hideNextTime = it }
+                ),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(checked = viewModel.hideNextTime, onCheckedChange = null)
+            Spacer(Modifier.width(8.dp))
+            Text("No volver a mostrar", style = MaterialTheme.typography.bodyLarge)
+        }
+        Spacer(Modifier.height(8.dp))
         if (isLastPage) {
-            PrimaryButton(text = "Permitir notificaciones", onClick = ::requestNotifications)
-            Spacer(Modifier.height(8.dp))
-            SecondaryButton(text = "Ahora no", onClick = { viewModel.finish(false, onFinished) })
+            PrimaryButton(text = "Comenzar", onClick = { viewModel.finish(onFinished) })
         } else {
             PrimaryButton(
                 text = "Siguiente",
                 icon = Icons.AutoMirrored.Rounded.ArrowForward,
-                onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } }
+                onClick = { scope.launch { pagerState.animateScrollToPage(currentPage + 1) } }
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -179,16 +215,17 @@ fun OnboardingScreen(
 
 @Composable
 private fun OnboardingPageContent(page: OnboardingPage) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        PulseRings(size = 260.dp, color = page.accent()) { page.illustration() }
-        Spacer(Modifier.height(32.dp))
+    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        // Mismo tamaño y posición que la forma de atrás, para que la ilustración quede centrada.
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 16.dp)
+                .fillMaxWidth(0.78f)
+                .aspectRatio(1f),
+            contentAlignment = Alignment.Center
+        ) { page.illustration() }
+        Spacer(Modifier.weight(1f))
         Text(
             page.title,
             style = MaterialTheme.typography.headlineMedium,
@@ -203,15 +240,17 @@ private fun OnboardingPageContent(page: OnboardingPage) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+        Spacer(Modifier.height(24.dp))
     }
 }
 
+/** Puntos de avance, centrados como el texto. */
 @Composable
 private fun PageIndicator(count: Int, current: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "Paso ${current + 1} de $count" },
+            .semantics { contentDescription = "Página ${current + 1} de $count" },
         horizontalArrangement = Arrangement.Center
     ) {
         repeat(count) { index ->

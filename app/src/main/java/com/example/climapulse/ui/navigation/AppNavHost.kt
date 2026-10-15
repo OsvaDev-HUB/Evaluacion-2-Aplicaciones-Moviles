@@ -34,11 +34,7 @@ fun ClimaPulseNavHost(startDestination: StartDestination) {
     val messengerScope = rememberCoroutineScope()
     val messenger = remember { Messenger(snackbarHostState, messengerScope) }
 
-    val start: Any = when (startDestination) {
-        StartDestination.Onboarding -> OnboardingRoute
-        is StartDestination.Login -> LoginRoute(biometricUnlock = startDestination.biometricUnlock)
-        StartDestination.Home -> HomeRoute
-    }
+    val start: Any = routeFor(startDestination)
 
     CompositionLocalProvider(LocalMessenger provides messenger) {
         NavHost(
@@ -51,7 +47,7 @@ fun ClimaPulseNavHost(startDestination: StartDestination) {
         ) {
             composable<OnboardingRoute> {
                 OnboardingScreen(
-                    onFinished = dropUnlessResumed { navController.clearAndNavigate(LoginRoute()) }
+                    onFinished = { next -> navController.clearAndNavigate(routeFor(next)) }
                 )
             }
             composable<LoginRoute> { entry ->
@@ -99,4 +95,11 @@ private fun NavHostController.clearAndNavigate(route: Any) {
         popUpTo(graph.id) { inclusive = true }
         launchSingleTop = true
     }
+}
+
+/** Convierte el destino que decide el Router en la ruta de navegación. */
+private fun routeFor(destination: StartDestination): Any = when (destination) {
+    StartDestination.Onboarding -> OnboardingRoute
+    is StartDestination.Login -> LoginRoute(biometricUnlock = destination.biometricUnlock)
+    StartDestination.Home -> HomeRoute
 }

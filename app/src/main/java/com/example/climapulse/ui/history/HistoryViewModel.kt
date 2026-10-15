@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.climapulse.data.EnvironmentReading
 import com.example.climapulse.data.EnvironmentRepository
+import com.example.climapulse.data.IdealRange
+import com.example.climapulse.data.Metric
 import com.example.climapulse.ui.UiState
 import com.example.climapulse.ui.appViewModelFactory
 import com.example.climapulse.ui.toUserMessage
@@ -28,6 +30,10 @@ class HistoryViewModel(private val environment: EnvironmentRepository) : ViewMod
         .map { list -> if (list.isEmpty()) UiState.Empty else UiState.Success(list) }
         .catch { emit(UiState.Error(it.toUserMessage())) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState.Loading)
+
+    /** Rangos ideales de cada métrica, para marcar las mediciones fuera de rango. */
+    val ranges: StateFlow<Map<Metric, IdealRange>> = environment.idealRanges
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Metric.entries.associateWith { it.defaultRange })
 
     fun recordFirstMeasurement() {
         if (_isSaving.value) return

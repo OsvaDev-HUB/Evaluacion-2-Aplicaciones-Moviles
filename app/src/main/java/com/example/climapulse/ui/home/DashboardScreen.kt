@@ -32,9 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.ui.unit.sp
-import com.example.climapulse.data.LinkState
 import com.example.climapulse.ui.components.CookieShape
-import com.example.climapulse.ui.components.LinkLine
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.derivedStateOf
@@ -75,6 +73,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -113,7 +112,7 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val linkState by viewModel.linkState.collectAsStateWithLifecycle()
+    val firstName by viewModel.firstName.collectAsStateWithLifecycle()
 
     AnimatedContent(
         targetState = state,
@@ -131,7 +130,7 @@ fun DashboardScreen(
             UiState.Empty -> Unit
             is UiState.Success -> DashboardContent(
                 data = current.data,
-                linkState = linkState,
+                firstName = firstName,
                 fromCache = current.fromCache,
                 isRefreshing = isRefreshing,
                 onRefresh = { viewModel.refresh() },
@@ -147,7 +146,7 @@ fun DashboardScreen(
 @Composable
 private fun DashboardContent(
     data: DashboardData,
-    linkState: LinkState,
+    firstName: String,
     fromCache: Boolean,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
@@ -173,7 +172,7 @@ private fun DashboardContent(
             verticalArrangement = Arrangement.spacedBy(Dimens.ItemGap)
         ) {
             item { DashboardHeader(reading, fromCache, isRefreshing, onRefresh) }
-            item { LinkStrip(linkState, onClick = onOpenLink) }
+            item { Greeting(firstName) }
             item {
                 StatusHero(
                     reading = reading,
@@ -224,19 +223,17 @@ private fun DashboardContent(
     }
 }
 
-/** Franja con la línea del enlace WiFi. Al tocarla se abre la pestaña Sensor. */
+/** Saludo con el nombre del usuario. Sin nombre guardado, solo dice "Hola". */
 @Composable
-private fun LinkStrip(state: LinkState, onClick: () -> Unit) {
-    Column(
+private fun Greeting(firstName: String) {
+    Text(
+        if (firstName.isBlank()) "Hola" else "Hola, $firstName",
+        style = MaterialTheme.typography.headlineMedium,
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(ClimaShapes.Large)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickable(onClickLabel = "Abrir enlace WiFi", role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 14.dp)
-    ) {
-        LinkLine(state)
-    }
+            .padding(top = 8.dp)
+            .semantics { heading() }
+    )
 }
 
 @Composable

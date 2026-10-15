@@ -11,6 +11,7 @@ import com.example.climapulse.ui.appViewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -27,11 +28,18 @@ class MainViewModel(private val session: SessionRepository) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            _startDestination.value = session.resolveStartDestination()
+            val inicio = System.currentTimeMillis()
+            val destino = session.resolveStartDestination()
+            // El logo se ve al menos 1,2 segundos, como en cualquier app (sin bloquear el hilo).
+            val restante = MIN_SPLASH_MILLIS - (System.currentTimeMillis() - inicio)
+            if (restante > 0) delay(restante)
+            _startDestination.value = destino
         }
     }
 
     companion object {
+        const val MIN_SPLASH_MILLIS = 1_200L
+
         val Factory = appViewModelFactory { container, _ -> MainViewModel(container.sessionRepository) }
     }
 }

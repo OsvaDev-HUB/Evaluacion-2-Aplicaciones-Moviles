@@ -98,6 +98,7 @@ Para probar con dos emuladores en el mismo PC: en el emulador sensor ejecuta `ad
 
 - Las lecturas son **simuladas** (`data/ReadingSimulator.kt`), como pide la actividad. Si el teléfono tiene sensores reales de temperatura, humedad o luz, se pueden activar cambiando `USE_DEMO_DATA` en `data/EnvironmentRepository.kt`.
 - La recuperación de contraseña solo revisa que la cuenta exista en el teléfono, porque no hay un servidor de correo.
+- **Al abrir la app**: primero el logo (Splash, al menos 1,2 s) y luego la **bienvenida** de 3 páginas. La bienvenida sale en cada apertura, salvo que se marque "No volver a mostrar"; se puede reactivar en Perfil → Ayuda. Después sigue al login, o directo al Inicio si la sesión está abierta.
 - La ventana de permisos y el tutorial aparecen solo en el **primer ingreso de cada usuario** (por ejemplo, justo después de registrarse). La bandera se guarda por correo en DataStore (`intro_done_<correo>`). El tutorial se puede repetir desde Perfil → Ayuda.
 - **Alertas**: si el permiso de notificaciones está concedido y "Alertas de ambiente" está activado en Perfil, llega una notificación cuando el ambiente pasa de cómodo a fuera de rango (`data/AlertNotifier.kt`). Funciona mientras la app está abierta o en segundo plano reciente; no hay un servicio que siga midiendo con la app cerrada.
 - En Perfil → Apariencia se elige el tema: **Sistema**, **Claro** u **Oscuro**. La elección queda guardada.

@@ -20,6 +20,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,6 +34,12 @@ class SettingsViewModel(private val session: SessionRepository) : ViewModel() {
     val themeMode = session.themeMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
 
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { session.setThemeMode(mode) }
+
+    // Interruptor de Perfil: true = la bienvenida sale al abrir la app.
+    val showWelcome = session.welcomeHidden.map { !it }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setShowWelcome(show: Boolean) = viewModelScope.launch { session.setWelcomeHidden(!show) }
 
     private val _messages = Channel<String>(Channel.BUFFERED)
     val messages = _messages.receiveAsFlow()

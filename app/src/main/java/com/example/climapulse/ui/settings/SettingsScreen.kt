@@ -1,5 +1,6 @@
 package com.example.climapulse.ui.settings
 
+import androidx.compose.material.icons.rounded.WavingHand
 import androidx.compose.foundation.layout.fillMaxWidth
 import com.example.climapulse.data.ThemeMode
 import androidx.compose.material.icons.rounded.DarkMode
@@ -105,6 +106,7 @@ fun SettingsScreen(
     val autoRefresh by viewModel.autoRefreshEnabled.collectAsStateWithLifecycle()
     val biometric by viewModel.biometricEnabled.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val showWelcome by viewModel.showWelcome.collectAsStateWithLifecycle()
     val biometricAvailable = remember { BiometricAuth.isAvailable(context) }
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     CollectMessages(viewModel.messages)
@@ -224,6 +226,14 @@ fun SettingsScreen(
         }
 
         SettingsSection(title = "Ayuda") {
+            SettingsSwitchRow(
+                icon = Icons.Rounded.WavingHand,
+                title = "Mostrar bienvenida al abrir",
+                subtitle = "Las pantallas de presentación antes del login",
+                checked = showWelcome,
+                onCheckedChange = { viewModel.setShowWelcome(it) }
+            )
+            SettingsDivider()
             SettingsRow(
                 icon = Icons.Rounded.School,
                 title = "Ver tutorial de nuevo",
