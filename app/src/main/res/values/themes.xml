@@ -1,0 +1,13 @@
+<resources>
+    <style name="Theme.ClimaPulse" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
+        <item name="android:colorAccent">@color/teal</item>
+    </style>
+
+    <!-- Tema de arranque para la SplashScreen API (androidx.core:core-splashscreen). -->
+    <style name="Theme.ClimaPulse.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/navy</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_climapulse_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.ClimaPulse</item>
+    </style>
+</resources>

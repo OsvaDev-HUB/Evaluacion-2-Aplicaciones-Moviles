@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo de ClimaPulse sin márgenes, para usar dentro de la app. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="72dp"
+    android:height="72dp"
+    android:viewportWidth="72"
+    android:viewportHeight="72">
+    <path android:fillColor="#2BC1AD" android:pathData="M36,0a36,36 0,1 0,0 72a36,36 0,1 0,0 -72" />
+    <path android:fillColor="#17212F" android:pathData="M36,9a27,27 0,1 0,0 54a27,27 0,1 0,0 -54" />
+    <path android:fillColor="#FFD166" android:pathData="M36,20a16,16 0,1 0,0 32a16,16 0,1 0,0 -32" />
+    <path android:fillColor="#FFFFFF" android:pathData="M36,27a9,9 0,1 0,0 18a9,9 0,1 0,0 -18" />
+</vector>
