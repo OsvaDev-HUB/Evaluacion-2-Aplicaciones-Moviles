@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.climapulse.ui.theme.BrandTeal
 import com.example.climapulse.ui.theme.Teal
 
 /**
@@ -47,7 +48,7 @@ import com.example.climapulse.ui.theme.Teal
 fun PulseRings(
     modifier: Modifier = Modifier,
     size: Dp = 240.dp,
-    color: Color = Teal,
+    color: Color = BrandTeal,
     content: @Composable BoxScope.() -> Unit
 ) {
     val progress by rememberInfiniteTransition(label = "pulse").animateFloat(

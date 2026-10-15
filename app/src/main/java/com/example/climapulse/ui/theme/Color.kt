@@ -5,73 +5,83 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 
-// Colores del logo. Se usan en la Splash y como semilla de los esquemas.
+// Los tres colores del logo. Toda la paleta sale de ellos:
+// - Azul marino: estructura (texto, barra de navegación, fondo oscuro).
+// - Turquesa: estado "cómodo" y acciones.
+// - Amarillo: estado "revisa".
 val BrandTeal = Color(0xFF2BC1AD)
 val BrandYellow = Color(0xFFFFD166)
 val Navy = Color(0xFF17212F)
 val NavyDeep = Color(0xFF101823)
 
 // ---------- Esquema claro (uso en terreno, con luz de día) ----------
-internal val LightPrimary = Color(0xFF00695F)
+// Botones, links, interruptores y textos destacados van en el azul marino del logo.
+// No se usa un turquesa oscurecido porque se ve verde esmeralda.
+internal val LightPrimary = Navy
 internal val LightOnPrimary = Color(0xFFFFFFFF)
-internal val LightPrimaryContainer = Color(0xFFA2F2E3)
-internal val LightOnPrimaryContainer = Color(0xFF00201C)
-internal val LightSecondary = Color(0xFF4A635F)
+// El turquesa exacto del logo, siempre como relleno y con contenido azul marino encima.
+internal val LightPrimaryContainer = BrandTeal
+internal val LightOnPrimaryContainer = Navy
+// Secundario: azul marino suave.
+internal val LightSecondary = Color(0xFF3D4D61)
 internal val LightOnSecondary = Color(0xFFFFFFFF)
-internal val LightSecondaryContainer = Color(0xFFCCE8E2)
-internal val LightOnSecondaryContainer = Color(0xFF05201C)
-internal val LightTertiary = Color(0xFF745B00)
+internal val LightSecondaryContainer = Color(0xFFD9E1EB)
+internal val LightOnSecondaryContainer = Navy
+// Terciario: el amarillo del logo (contenedor) y un amarillo oscuro para texto.
+internal val LightTertiary = Color(0xFF7A5900)
 internal val LightOnTertiary = Color(0xFFFFFFFF)
 internal val LightTertiaryContainer = BrandYellow
-internal val LightOnTertiaryContainer = Color(0xFF241A00)
+internal val LightOnTertiaryContainer = Navy
 internal val LightError = Color(0xFFB3261E)
 internal val LightOnError = Color(0xFFFFFFFF)
 internal val LightErrorContainer = Color(0xFFF9DEDC)
 internal val LightOnErrorContainer = Color(0xFF410E0B)
-internal val LightSurface = Color(0xFFF4FBF8)
-internal val LightOnSurface = Color(0xFF161D1B)
-internal val LightOnSurfaceVariant = Color(0xFF3F4946)
+// Grises fríos de la familia del azul marino (no verdosos).
+internal val LightSurface = Color(0xFFF5F7FA)
+internal val LightOnSurface = Navy
+internal val LightOnSurfaceVariant = Color(0xFF465263)
 internal val LightSurfaceLowest = Color(0xFFFFFFFF)
-// Superficies con más contraste contra el fondo, para que las tarjetas se noten.
-internal val LightSurfaceLow = Color(0xFFE5EEEA)
-internal val LightSurfaceContainer = Color(0xFFDCE6E2)
-internal val LightSurfaceHigh = Color(0xFFD2DDD8)
-internal val LightSurfaceHighest = Color(0xFFC8D4CF)
-internal val LightOutline = Color(0xFF6F7976)
-internal val LightOutlineVariant = Color(0xFFAAB7B2)
+internal val LightSurfaceLow = Color(0xFFEBEFF4)
+internal val LightSurfaceContainer = Color(0xFFE2E8EF)
+internal val LightSurfaceHigh = Color(0xFFD8DFE8)
+internal val LightSurfaceHighest = Color(0xFFCDD6E1)
+internal val LightOutline = Color(0xFF737F8E)
+internal val LightOutlineVariant = Color(0xFFB3BECB)
 
 // ---------- Esquema oscuro (interiores con poca luz) ----------
-internal val DarkPrimary = Color(0xFF5FDBC6)
-internal val DarkOnPrimary = Color(0xFF003731)
-internal val DarkPrimaryContainer = Color(0xFF005048)
-internal val DarkOnPrimaryContainer = Color(0xFFA2F2E3)
-internal val DarkSecondary = Color(0xFFB1CCC6)
-internal val DarkOnSecondary = Color(0xFF1C3531)
-internal val DarkSecondaryContainer = Color(0xFF334B47)
-internal val DarkOnSecondaryContainer = Color(0xFFCCE8E2)
+// El fondo es el azul marino del logo, igual que la Splash.
+// Sobre fondo oscuro el turquesa del logo sí se lee, así que es el color de acción.
+internal val DarkPrimary = BrandTeal
+internal val DarkOnPrimary = Navy
+// Los rellenos de estado usan los colores exactos del logo en ambos temas.
+internal val DarkPrimaryContainer = BrandTeal
+internal val DarkOnPrimaryContainer = Navy
+internal val DarkSecondary = Color(0xFFB9C6D6)
+internal val DarkOnSecondary = Color(0xFF233142)
+internal val DarkSecondaryContainer = Color(0xFF2C3B4E)
+internal val DarkOnSecondaryContainer = Color(0xFFD9E1EB)
 internal val DarkTertiary = BrandYellow
 internal val DarkOnTertiary = Color(0xFF3D2E00)
-internal val DarkTertiaryContainer = Color(0xFF584400)
-internal val DarkOnTertiaryContainer = Color(0xFFFFE08F)
+internal val DarkTertiaryContainer = BrandYellow
+internal val DarkOnTertiaryContainer = Navy
 internal val DarkError = Color(0xFFFFB4AB)
 internal val DarkOnError = Color(0xFF690005)
 internal val DarkErrorContainer = Color(0xFF93000A)
 internal val DarkOnErrorContainer = Color(0xFFFFDAD6)
-internal val DarkSurface = Color(0xFF0E1513)
-internal val DarkOnSurface = Color(0xFFDDE4E1)
-internal val DarkOnSurfaceVariant = Color(0xFFBEC9C5)
-internal val DarkSurfaceLowest = Color(0xFF090F0E)
-internal val DarkSurfaceLow = Color(0xFF19221F)
-internal val DarkSurfaceContainer = Color(0xFF1F2926)
-internal val DarkSurfaceHigh = Color(0xFF2A3431)
-internal val DarkSurfaceHighest = Color(0xFF353F3C)
-internal val DarkOutline = Color(0xFF899390)
-internal val DarkOutlineVariant = Color(0xFF3F4946)
+internal val DarkSurface = NavyDeep
+internal val DarkOnSurface = Color(0xFFE5ECF4)
+internal val DarkOnSurfaceVariant = Color(0xFFA9B6C5)
+internal val DarkSurfaceLowest = Color(0xFF0A1018)
+internal val DarkSurfaceLow = Navy
+internal val DarkSurfaceContainer = Color(0xFF1D2938)
+internal val DarkSurfaceHigh = Color(0xFF253344)
+internal val DarkSurfaceHighest = Color(0xFF2F3E51)
+internal val DarkOutline = Color(0xFF6B7C90)
+internal val DarkOutlineVariant = Color(0xFF34445A)
 
 // Colores de acento que cambian según el tema claro u oscuro.
-// En claro se usan tonos más oscuros para que el texto se lea bien sobre fondo blanco.
 
-/** Estado "todo bien": el turquesa de la marca. */
+/** Estado "todo bien": azul marino en tema claro y turquesa en tema oscuro (se leen sobre el fondo). */
 val Teal: Color
     @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.primary
 

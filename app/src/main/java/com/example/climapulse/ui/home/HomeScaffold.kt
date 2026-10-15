@@ -33,7 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import com.example.climapulse.ui.theme.BrandTeal
+import com.example.climapulse.ui.theme.Navy
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -197,15 +200,14 @@ private fun ClimaPulseNavigation(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
 
-    // Barra en el turquesa de la marca para que no se confunda con las tarjetas grises.
-    // En tema claro: fondo turquesa oscuro; en tema oscuro: turquesa profundo.
-    val colors = MaterialTheme.colorScheme
-    val isDark = colors.surface.luminance() < 0.5f
-    val barColor = if (isDark) colors.primaryContainer else colors.primary
-    val indicator = if (isDark) colors.primary else colors.primaryContainer
-    val selectedIcon = if (isDark) colors.onPrimary else colors.onPrimaryContainer
-    val selectedText = if (isDark) colors.onPrimaryContainer else colors.onPrimary
-    val idle = (if (isDark) colors.onPrimaryContainer else colors.onPrimary).copy(alpha = 0.78f)
+    // Barra en el azul marino del logo; la sección activa en el turquesa del logo.
+    // En tema oscuro la barra es un poco más oscura que el fondo para que se separe.
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val barColor = if (isDark) NavyDeepest else Navy
+    val indicator = BrandTeal
+    val selectedIcon = Navy
+    val selectedText = Color.White
+    val idle = NavIdle
 
     NavigationBar(
         containerColor = barColor,
@@ -229,3 +231,7 @@ private fun ClimaPulseNavigation(navController: NavHostController) {
         }
     }
 }
+
+// Colores propios de la barra de navegación.
+private val NavyDeepest = Color(0xFF0A1018)
+private val NavIdle = Color(0xFFB9C6D6)

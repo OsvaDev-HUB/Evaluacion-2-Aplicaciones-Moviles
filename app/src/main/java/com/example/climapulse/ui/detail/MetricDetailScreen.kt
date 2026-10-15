@@ -1,5 +1,9 @@
 package com.example.climapulse.ui.detail
 
+import com.example.climapulse.ui.theme.ClimaShapes
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,33 +118,42 @@ private fun MetricDetailContent(data: MetricDetailData, viewModel: MetricDetailV
             .padding(horizontal = Dimens.ScreenPadding, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(Dimens.ItemGap)
     ) {
-        HeroCard(
-            accent = metric.accent,
-            modifier = Modifier.semantics(mergeDescendants = true) {
-                contentDescription = "${metric.label} actual: ${metric.formatWithUnit(value)}, $status"
-            }
+        // Mismos colores que la galleta del Inicio: turquesa si está en rango, amarillo si no.
+        val inRange = value in data.range
+        val colors = MaterialTheme.colorScheme
+        val container = if (inRange) colors.primaryContainer else colors.tertiaryContainer
+        val content = if (inRange) colors.onPrimaryContainer else colors.onTertiaryContainer
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(ClimaShapes.Hero)
+                .background(container)
+                .padding(Dimens.CardPadding)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "${metric.label} actual: ${metric.formatWithUnit(value)}, $status"
+                }
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(icon = metric.icon, tint = metric.accent, size = 56.dp)
+                IconBadge(icon = metric.icon, tint = content, container = content.copy(alpha = 0.12f), size = 56.dp)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Lectura actual", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Lectura actual", style = MaterialTheme.typography.labelLarge, color = content)
                     Text(
                         "Actualizada ${formatTime(data.reading.timestampMillis)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = content.copy(alpha = 0.8f)
                     )
                 }
-                StatusPill(text = status, color = metric.accent)
+                StatusPill(text = status, color = content)
             }
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(metric.format(value), style = MetricValueStyle.copy(fontSize = MetricValueStyle.fontSize * 1.3f))
+                Text(metric.format(value), style = MetricValueStyle.copy(fontSize = MetricValueStyle.fontSize * 1.3f), color = content)
                 Spacer(Modifier.width(6.dp))
                 Text(
                     metric.unit,
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = content.copy(alpha = 0.8f),
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
             }
@@ -148,13 +161,14 @@ private fun MetricDetailContent(data: MetricDetailData, viewModel: MetricDetailV
             val span = (data.range.max - data.range.min).coerceAtLeast(1f)
             LinearMeter(
                 progress = ((value - (data.range.min - span / 2)) / (span * 2)).coerceIn(0f, 1f),
-                color = metric.accent
+                color = content,
+                trackColor = content.copy(alpha = 0.18f)
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 "Rango ideal ${metric.formatWithUnit(data.range.min)} – ${metric.formatWithUnit(data.range.max)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = content.copy(alpha = 0.8f)
             )
         }
 
