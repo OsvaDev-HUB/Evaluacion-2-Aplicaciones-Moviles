@@ -458,7 +458,7 @@ private fun TimelineItem(row: EnvironmentReading, ranges: Map<Metric, IdealRange
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(formatTime(row.timestampMillis), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"))
                 Spacer(Modifier.width(8.dp))
-                // Origen de la lectura: este teléfono o el nodo sensor remoto.
+                // Origen de la lectura: el nombre del nodo sensor.
                 Text(row.origin, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, modifier = Modifier.weight(1f))
                 if (!comfortable) {
                     Text("Revisar", style = MaterialTheme.typography.labelMedium, color = colors.tertiary)

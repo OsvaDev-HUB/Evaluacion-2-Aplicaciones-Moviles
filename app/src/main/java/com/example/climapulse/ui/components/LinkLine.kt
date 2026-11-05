@@ -47,12 +47,10 @@ import com.example.climapulse.data.LinkState
 @Composable
 fun LinkLine(state: LinkState, modifier: Modifier = Modifier) {
     val sensorName = when (state.role) {
-        LinkRole.SENSOR -> "Este teléfono"
         LinkRole.MONITOR -> state.peerName.ifEmpty { "Nodo sensor" }
         LinkRole.NONE -> "Nodo sensor"
     }
     val monitorName = when (state.role) {
-        LinkRole.SENSOR -> if (state.monitors == 1) "1 monitor" else "${state.monitors} monitores"
         LinkRole.MONITOR -> "Este teléfono"
         LinkRole.NONE -> "Monitor"
     }
@@ -129,4 +127,4 @@ private fun Track(active: Boolean, modifier: Modifier = Modifier) {
 
 /** true cuando hay lecturas viajando: monitor conectado, o sensor con al menos un monitor. */
 val LinkState.isActive: Boolean
-    get() = connected && (role == LinkRole.MONITOR || monitors > 0)
+    get() = connected && role == LinkRole.MONITOR

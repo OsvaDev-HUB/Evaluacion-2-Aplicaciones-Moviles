@@ -17,7 +17,6 @@ import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PauseCircle
-import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Wifi
@@ -37,12 +36,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.climapulse.data.Actuators
@@ -50,7 +47,6 @@ import com.example.climapulse.data.FoundSensor
 import com.example.climapulse.data.LinkRole
 import com.example.climapulse.data.LinkState
 import com.example.climapulse.data.Metric
-import com.example.climapulse.data.WifiLink
 import com.example.climapulse.ui.components.ClimaCard
 import com.example.climapulse.ui.components.LinkLine
 import com.example.climapulse.ui.components.isActive
@@ -82,7 +78,7 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
             .padding(Dimens.ScreenPadding),
         verticalArrangement = Arrangement.spacedBy(Dimens.ItemGap)
     ) {
-        ScreenTitle(title = "Enlace WiFi", subtitle = "Conecta dos teléfonos: uno simula el sensor y el otro lo monitorea.")
+        ScreenTitle(title = "Enlace WiFi", subtitle = "Conecta la app al sensor ESP8266 de tu red WiFi.")
         Spacer(Modifier.height(4.dp))
 
         LinkHero(state)
@@ -102,13 +98,6 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
         }
 
         when {
-            state.role == LinkRole.SENSOR -> {
-                SensorInfoCard(state)
-                SectionHeading(title = "Actuadores del nodo")
-                ActuatorControls(state.actuators, onChange = viewModel::updateActuators)
-                SecondaryButton(text = "Detener nodo sensor", onClick = viewModel::stop)
-            }
-
             state.role == LinkRole.MONITOR && state.connected -> {
                 ClimaCard {
                     InfoRow(Icons.Rounded.Router, "Conectado a", state.peerName)
@@ -124,8 +113,7 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
             }
 
             else -> {
-                PrimaryButton(text = "Ser nodo sensor", icon = Icons.Rounded.Sensors, onClick = viewModel::startSensor)
-                SecondaryButton(text = "Ser monitor", icon = Icons.Rounded.PhoneAndroid, onClick = viewModel::startMonitor)
+                PrimaryButton(text = "Buscar sensor", icon = Icons.Rounded.Sensors, onClick = viewModel::startMonitor)
             }
         }
 
@@ -134,7 +122,7 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
             InfoRow(
                 Icons.Rounded.Lock,
                 "Mensajes cifrados (AES-GCM)",
-                "La llave se crea a partir del PIN. Sin el PIN no se pueden leer las lecturas ni controlar el sensor."
+                "La llave se crea a partir del PIN del ESP8266. Sin el PIN no se pueden leer las lecturas ni controlar el sensor."
             )
         }
 
@@ -148,7 +136,7 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
                             when (metric) {
                                 Metric.TEMPERATURE -> "Medición en grados Celsius"
                                 Metric.HUMIDITY -> "Humedad relativa del ambiente"
-                                Metric.LIGHT -> "Nivel de iluminación en lux"
+                                Metric.LIGHT -> "Nivel de luz del LDR (escala de 0 a 1000)"
                             }
                         )
                     },
@@ -168,17 +156,14 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
 private fun LinkHero(state: LinkState) {
     val colors = MaterialTheme.colorScheme
     val title = when {
-        state.role == LinkRole.SENSOR && state.monitors > 0 -> "Enviando lecturas"
-        state.role == LinkRole.SENSOR -> "Esperando un monitor"
         state.role == LinkRole.MONITOR && state.connected -> "Recibiendo lecturas"
         state.connecting -> "Conectando..."
         state.role == LinkRole.MONITOR -> "Sin conexión"
         else -> "Sin enlace"
     }
     val description = when {
-        state.role == LinkRole.SENSOR -> "Este teléfono simula el sensor y envía una lectura cada 3 segundos."
-        state.role == LinkRole.MONITOR && state.connected -> "Ves las lecturas del otro teléfono en tiempo real y puedes controlarlo."
-        else -> "Elige qué hará este teléfono. Los dos deben estar en la misma red WiFi."
+        state.role == LinkRole.MONITOR && state.connected -> "Ves las lecturas del DHT11 y del LDR cada 3 segundos y puedes controlar el sensor."
+        else -> "El teléfono y el ESP8266 deben estar en la misma red WiFi."
     }
     val container = if (state.isActive) colors.primaryContainer else colors.surfaceContainerLow
     val content = if (state.isActive) colors.onPrimaryContainer else colors.onSurface
@@ -205,37 +190,13 @@ private fun LinkHero(state: LinkState) {
 }
 
 @Composable
-private fun SensorInfoCard(state: LinkState) {
-    ClimaCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("PIN para el monitor", style = MaterialTheme.typography.labelLarge)
-            Text(
-                state.pin.chunked(3).joinToString(" "),
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 4.sp
-            )
-        }
-    }
-    ClimaCard {
-        InfoRow(Icons.Rounded.Wifi, "Dirección del sensor", state.address.ifEmpty { "Abriendo puerto ${WifiLink.PORT}..." })
-        InfoRow(Icons.Rounded.PhoneAndroid, "Monitores conectados", state.monitors.toString())
-    }
-}
-
-@Composable
 private fun MonitorForm(viewModel: SensorViewModel, found: List<FoundSensor>, connecting: Boolean) {
     SectionHeading(title = "Sensores en tu red")
     ClimaCard {
         if (found.isEmpty()) {
             ListItem(
                 headlineContent = { Text("Buscando sensores...") },
-                supportingContent = { Text("Si no aparece, escribe la IP que muestra el teléfono sensor.") },
+                supportingContent = { Text("Si no aparece, escribe la IP que muestra el monitor serie del ESP8266.") },
                 leadingContent = { CircularProgressIndicator(modifier = Modifier.padding(8.dp), strokeWidth = 2.dp) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
@@ -282,11 +243,11 @@ private fun MonitorForm(viewModel: SensorViewModel, found: List<FoundSensor>, co
 @Composable
 private fun ActuatorControls(actuators: Actuators, onChange: (Actuators) -> Unit) {
     ClimaCard {
-        SwitchRow(Icons.Rounded.Air, "Ventilador", "Baja la temperatura y la humedad", actuators.fan) {
+        SwitchRow(Icons.Rounded.Air, "Ventilador", "Enciende el LED D0 del sensor", actuators.fan) {
             onChange(actuators.copy(fan = it))
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        SwitchRow(Icons.Rounded.Lightbulb, "Lámpara", "Sube el nivel de luz", actuators.lamp) {
+        SwitchRow(Icons.Rounded.Lightbulb, "Lámpara", "Enciende el LED D4 del sensor", actuators.lamp) {
             onChange(actuators.copy(lamp = it))
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

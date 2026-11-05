@@ -12,3 +12,9 @@ app/build/
 /.impeccable/
 /DESIGN.md
 /PRODUCT.md
+
+# Clave del WiFi del ESP8266
+/sensores/config.h
+
+# Herramienta arduino-cli descargada (binario)
+/bin/

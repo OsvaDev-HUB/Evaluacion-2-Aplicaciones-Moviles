@@ -20,8 +20,8 @@ data class EnvironmentReading(
     val light: Float,
     val timestampMillis: Long,
     val usingHardware: Boolean = false,
-    // De dónde viene la lectura: este teléfono o el nombre del nodo sensor remoto.
-    val origin: String = ReadingSimulator.ORIGIN_LOCAL
+    // Nombre del nodo sensor que envió la lectura.
+    val origin: String = "Nodo sensor"
 ) {
     fun valueOf(metric: Metric): Float = when (metric) {
         Metric.TEMPERATURE -> temperature
@@ -30,7 +30,7 @@ data class EnvironmentReading(
     }
 }
 
-/** Actuadores simulados del nodo sensor que el monitor puede controlar a distancia. */
+/** Actuadores del nodo sensor que el monitor puede controlar a distancia. */
 @Serializable
 data class Actuators(
     val fan: Boolean = false,

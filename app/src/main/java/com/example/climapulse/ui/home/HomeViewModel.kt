@@ -104,6 +104,13 @@ class HomeViewModel(
                 wasComfortable = comfortable
             }
         }
+        // Si se corta el enlace, la última lectura se marca como antigua ("Sin conexión").
+        viewModelScope.launch {
+            link.state.map { it.connected }.drop(1).filter { !it }.collect {
+                val current = readingState.value
+                if (current is UiState.Success) readingState.value = current.copy(fromCache = true)
+            }
+        }
         // Lecturas en tiempo real del enlace WiFi (cada 3 segundos).
         viewModelScope.launch {
             environment.liveReadings.collect { reading ->

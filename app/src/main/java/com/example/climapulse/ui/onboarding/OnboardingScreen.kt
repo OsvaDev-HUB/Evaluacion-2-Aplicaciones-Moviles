@@ -89,7 +89,7 @@ private data class OnboardingPage(
 private val pages = listOf(
     OnboardingPage(
         title = "Tu espacio, en un solo vistazo",
-        body = "Temperatura, humedad y luz en tiempo real. Un teléfono mide y otro lo monitorea por WiFi.",
+        body = "Temperatura, humedad y luz en tiempo real. El sensor ESP8266 mide y la app lo monitorea por WiFi.",
         lobes = 9,
         depth = 0.06f
     ) { ClimaLogo(size = 112.dp) },
@@ -107,8 +107,8 @@ private val pages = listOf(
         )
     },
     OnboardingPage(
-        title = "Dos teléfonos, un sistema",
-        body = "Conéctalos con un PIN de 6 dígitos. Las lecturas viajan cifradas y quedan guardadas en el teléfono.",
+        title = "Sensor real, por WiFi",
+        body = "Conecta el sensor ESP8266 con un PIN de 6 dígitos. Las lecturas viajan cifradas y quedan guardadas en el teléfono.",
         lobes = 12,
         depth = 0.05f
     ) {

@@ -80,7 +80,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.climapulse.data.EnvironmentReading
 import com.example.climapulse.data.IdealRange
 import com.example.climapulse.data.Metric
-import com.example.climapulse.data.ReadingSimulator
 import com.example.climapulse.ui.UiState
 import com.example.climapulse.ui.components.ClimaCard
 import com.example.climapulse.ui.components.ClimaLogo
@@ -252,10 +251,7 @@ private fun DashboardHeader(
     )
     val subtitle = when {
         fromCache -> "Sin conexión · última lectura ${formatTime(reading.timestampMillis)}"
-        reading.usingHardware -> "Sensor conectado · ${formatTime(reading.timestampMillis)}"
-        // Lectura que llegó por WiFi desde otro teléfono.
-        reading.origin != ReadingSimulator.ORIGIN_LOCAL -> "${reading.origin} · ${formatTime(reading.timestampMillis)}"
-        else -> "Datos simulados · ${formatTime(reading.timestampMillis)}"
+        else -> "${reading.origin} · ${formatTime(reading.timestampMillis)}"
     }
 
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

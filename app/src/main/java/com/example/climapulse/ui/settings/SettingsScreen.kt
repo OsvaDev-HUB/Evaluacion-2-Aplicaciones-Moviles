@@ -178,14 +178,12 @@ fun SettingsScreen(
             SettingsRow(
                 icon = Icons.Rounded.Sensors,
                 title = when (linkState.role) {
-                    LinkRole.SENSOR -> "Este teléfono es el nodo sensor"
                     LinkRole.MONITOR -> if (linkState.connected) "Monitor de ${linkState.peerName}" else "Monitor sin conexión"
-                    LinkRole.NONE -> "Datos de demostración"
+                    LinkRole.NONE -> "Sin sensor conectado"
                 },
                 subtitle = when (linkState.role) {
-                    LinkRole.SENSOR -> "Enviando lecturas a ${linkState.monitors} monitor(es) por WiFi"
                     LinkRole.MONITOR -> "Lecturas recibidas por WiFi desde ${linkState.address}"
-                    LinkRole.NONE -> "Conecta dos teléfonos en la pestaña Sensor"
+                    LinkRole.NONE -> "Conéctate al ESP8266 en la pestaña Sensor"
                 }
             )
             SettingsDivider()

@@ -6,13 +6,12 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.example.climapulse.data.Actuators
 import com.example.climapulse.data.FoundSensor
-import com.example.climapulse.data.LinkRole
 import com.example.climapulse.data.LinkState
 import com.example.climapulse.data.WifiLink
 import com.example.climapulse.ui.appViewModelFactory
 import kotlinx.coroutines.flow.StateFlow
 
-/** Maneja la pantalla del enlace WiFi entre el nodo sensor y el monitor. */
+/** Maneja la pantalla del enlace WiFi con el nodo sensor ESP8266. */
 class SensorViewModel(private val link: WifiLink) : ViewModel() {
     val state: StateFlow<LinkState> = link.state
     val foundSensors: StateFlow<List<FoundSensor>> = link.foundSensors
@@ -25,11 +24,6 @@ class SensorViewModel(private val link: WifiLink) : ViewModel() {
     var pin by mutableStateOf("")
     var formError by mutableStateOf<String?>(null)
         private set
-
-    fun startSensor() {
-        choosingMonitor = false
-        link.startSensor()
-    }
 
     fun startMonitor() {
         choosingMonitor = true
@@ -46,7 +40,7 @@ class SensorViewModel(private val link: WifiLink) : ViewModel() {
         val cleanHost = host.trim()
         formError = when {
             cleanHost.isEmpty() -> "Ingresa la IP del nodo sensor o elige uno de la lista."
-            pin.length != 6 -> "El PIN tiene 6 dígitos y aparece en el teléfono sensor."
+            pin.length != 6 -> "El PIN tiene 6 dígitos y está en config.h del sensor."
             else -> null
         }
         if (formError != null) return
@@ -67,14 +61,8 @@ class SensorViewModel(private val link: WifiLink) : ViewModel() {
 
     fun clearError() = link.clearError()
 
-    /** Cambia un actuador: en el sensor se aplica directo, en el monitor se envía como comando. */
-    fun updateActuators(actuators: Actuators) {
-        when (state.value.role) {
-            LinkRole.SENSOR -> link.setLocalActuators(actuators)
-            LinkRole.MONITOR -> link.sendCommand(actuators)
-            LinkRole.NONE -> Unit
-        }
-    }
+    /** Envía al sensor el nuevo estado de los actuadores. */
+    fun updateActuators(actuators: Actuators) = link.sendCommand(actuators)
 
     override fun onCleared() {
         link.stopDiscovery()

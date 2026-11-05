@@ -1,18 +1,16 @@
 package com.example.climapulse.data
 
 import android.content.Context
-import android.net.ConnectivityManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.IOException
-import java.net.Inet4Address
 import java.net.InetSocketAddress
-import java.net.ServerSocket
 import java.net.Socket
-import java.security.SecureRandom
+import java.net.SocketTimeoutException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,24 +28,22 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /** Papel de este teléfono en el enlace WiFi. */
-enum class LinkRole { NONE, SENSOR, MONITOR }
+enum class LinkRole { NONE, MONITOR }
 
 data class LinkState(
     val role: LinkRole = LinkRole.NONE,
     val connected: Boolean = false,
     val connecting: Boolean = false,
-    val pin: String = "",
     val address: String = "",
     val peerName: String = "",
-    val monitors: Int = 0,
     val actuators: Actuators = Actuators(),
     val error: String? = null
 )
 
-/** Nodo sensor encontrado en la red WiFi con NSD (Network Service Discovery). */
+/** Nodo sensor (ESP8266) encontrado en la red WiFi con NSD (Network Service Discovery). */
 data class FoundSensor(val name: String, val host: String, val port: Int)
 
-/** Mensaje que viaja entre los dos teléfonos (JSON cifrado, uno por línea). */
+/** Mensaje que viaja entre la app y el nodo sensor (JSON cifrado, uno por línea). */
 @Serializable
 data class LinkMessage(
     val tipo: String,
@@ -57,17 +53,15 @@ data class LinkMessage(
 )
 
 /**
- * Conexión WiFi entre dos teléfonos Android en la misma red:
- * - SENSOR: abre un servidor TCP, se anuncia con NSD y envía lecturas simuladas cada 3 segundos.
- * - MONITOR: busca sensores, se conecta con el PIN, recibe lecturas y controla los actuadores.
+ * Conexión WiFi con el nodo sensor ESP8266 (sketch "sensores/sensores.ino"):
+ * busca el sensor en la red, se conecta con el PIN, recibe lecturas reales
+ * del DHT11 y del LDR cada 3 segundos y controla los actuadores.
  */
 class WifiLink(
     context: Context,
-    private val database: AppDatabase,
-    private val simulator: ReadingSimulator
+    private val database: AppDatabase
 ) {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val json = Json { ignoreUnknownKeys = true }
     private val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
@@ -81,120 +75,18 @@ class WifiLink(
     private val _readings = MutableSharedFlow<EnvironmentReading>(extraBufferCapacity = 8)
     val readings: SharedFlow<EnvironmentReading> = _readings.asSharedFlow()
 
-    /** Última lectura generada (sensor) o recibida (monitor). */
+    /** Última lectura recibida del nodo sensor. */
     @Volatile
     var lastReading: EnvironmentReading? = null
         private set
 
     private var crypto: LinkCrypto? = null
     private var job: Job? = null
-    private var serverSocket: ServerSocket? = null
-    private var monitorPeer: Peer? = null
-    private val connectedMonitors = mutableListOf<Peer>()
-    private var nsdRegistration: NsdManager.RegistrationListener? = null
+    private var sensorPeer: Peer? = null
     private var nsdDiscovery: NsdManager.DiscoveryListener? = null
     private var lastSavedMillis = 0L
 
-    // ===================== Modo SENSOR =====================
-
-    fun startSensor() {
-        stop()
-        val pin = (100_000 + SecureRandom().nextInt(900_000)).toString()
-        crypto = LinkCrypto(pin)
-        _state.value = LinkState(role = LinkRole.SENSOR, connecting = true, pin = pin)
-
-        job = scope.launch {
-            try {
-                val server = ServerSocket()
-                server.reuseAddress = true
-                server.bind(InetSocketAddress(PORT))
-                serverSocket = server
-                registerService()
-                _state.value = _state.value.copy(
-                    connecting = false,
-                    connected = true,
-                    address = "${localIpAddress() ?: "sin IP"}:$PORT"
-                )
-                launch { sendReadingsLoop() }
-                // Espera a que se conecten monitores (accept bloquea hasta que llega uno).
-                while (isActive) {
-                    val socket = server.accept()
-                    launch { handleMonitor(socket) }
-                }
-            } catch (e: Exception) {
-                if (isActive && _state.value.role == LinkRole.SENSOR) {
-                    _state.value = _state.value.copy(
-                        connected = false,
-                        connecting = false,
-                        error = "No se pudo abrir el puerto $PORT. Revisa que estés conectado a WiFi."
-                    )
-                }
-            }
-        }
-    }
-
-    private suspend fun sendReadingsLoop() {
-        // delay() se cancela solo cuando se detiene el enlace.
-        while (_state.value.role == LinkRole.SENSOR) {
-            val actuators = _state.value.actuators
-            if (!actuators.paused) {
-                val reading = simulator.next(actuators)
-                lastReading = reading
-                _readings.tryEmit(reading)
-                broadcast(LinkMessage(tipo = "lectura", lectura = reading.copy(origin = deviceName)))
-            }
-            delay(SEND_INTERVAL_MILLIS)
-        }
-    }
-
-    private fun handleMonitor(socket: Socket) {
-        val peer = Peer(socket)
-        try {
-            // El primer mensaje debe ser "hola". Si el PIN es distinto, no se puede descifrar y se corta.
-            socket.soTimeout = 10_000
-            val hello = peer.read() ?: return
-            if (hello.tipo != "hola") return
-            socket.soTimeout = 0
-
-            synchronized(connectedMonitors) { connectedMonitors.add(peer) }
-            updateMonitorCount()
-            peer.send(LinkMessage(tipo = "bienvenida", nombre = deviceName, actuadores = _state.value.actuators))
-            lastReading?.let { peer.send(LinkMessage(tipo = "lectura", lectura = it.copy(origin = deviceName))) }
-
-            while (true) {
-                val message = peer.read() ?: break
-                if (message.tipo == "comando" && message.actuadores != null) {
-                    _state.value = _state.value.copy(actuators = message.actuadores)
-                    broadcast(LinkMessage(tipo = "estado", actuadores = message.actuadores))
-                }
-            }
-        } catch (e: Exception) {
-            // PIN incorrecto o el monitor se desconectó.
-        } finally {
-            synchronized(connectedMonitors) { connectedMonitors.remove(peer) }
-            updateMonitorCount()
-            peer.close()
-        }
-    }
-
-    private fun broadcast(message: LinkMessage) {
-        val peers = synchronized(connectedMonitors) { connectedMonitors.toList() }
-        peers.forEach { peer -> runCatching { peer.send(message) } }
-    }
-
-    private fun updateMonitorCount() {
-        val count = synchronized(connectedMonitors) { connectedMonitors.size }
-        if (_state.value.role == LinkRole.SENSOR) _state.value = _state.value.copy(monitors = count)
-    }
-
-    /** El sensor también puede cambiar sus actuadores desde su propia pantalla. */
-    fun setLocalActuators(actuators: Actuators) {
-        if (_state.value.role != LinkRole.SENSOR) return
-        _state.value = _state.value.copy(actuators = actuators)
-        scope.launch { broadcast(LinkMessage(tipo = "estado", actuadores = actuators)) }
-    }
-
-    // ===================== Modo MONITOR =====================
+    // ===================== Conexión con el sensor =====================
 
     fun connect(host: String, port: Int, pin: String) {
         stop()
@@ -202,53 +94,81 @@ class WifiLink(
         _state.value = LinkState(role = LinkRole.MONITOR, connecting = true, address = "$host:$port")
 
         job = scope.launch {
-            var peer: Peer? = null
-            try {
-                val socket = Socket()
-                socket.connect(InetSocketAddress(host, port), 5_000)
-                peer = Peer(socket)
-                monitorPeer = peer
-
-                peer.send(LinkMessage(tipo = "hola", nombre = deviceName))
-                socket.soTimeout = 5_000
-                val welcome = peer.read() ?: throw IOException("PIN incorrecto")
-                socket.soTimeout = 0
-                _state.value = _state.value.copy(
-                    connecting = false,
-                    connected = true,
-                    peerName = welcome.nombre.orEmpty(),
-                    actuators = welcome.actuadores ?: Actuators()
-                )
-
-                while (isActive) {
-                    val message = peer.read() ?: break
-                    when (message.tipo) {
-                        "lectura" -> message.lectura?.let { onRemoteReading(it) }
-                        "estado" -> message.actuadores?.let { _state.value = _state.value.copy(actuators = it) }
-                    }
+            var linked = false  // true después de la primera conexión exitosa
+            while (isActive) {
+                try {
+                    openSession(host, port) { linked = true }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // La conexión falló o se cortó; se decide abajo qué hacer.
                 }
-                throw IOException("conexión cerrada")
-            } catch (e: Exception) {
-                if (isActive && _state.value.role == LinkRole.MONITOR) {
-                    val wasConnected = _state.value.connected
+                if (!isActive || _state.value.role != LinkRole.MONITOR) break
+
+                if (!linked) {
+                    // Nunca se pudo conectar: probablemente la IP o el PIN están mal.
                     _state.value = _state.value.copy(
                         connected = false,
                         connecting = false,
-                        error = if (wasConnected) "Se perdió la conexión con el nodo sensor."
-                        else "No se pudo conectar. Revisa la IP, el PIN y que ambos estén en la misma red WiFi."
+                        error = "No se pudo conectar. Revisa la IP, el PIN y que el sensor esté en la misma red WiFi."
                     )
+                    break
                 }
-            } finally {
-                peer?.close()
-                if (monitorPeer === peer) monitorPeer = null
+
+                // Ya estaba conectado (por ejemplo, el ESP8266 se reinició): se reintenta solo.
+                _state.value = _state.value.copy(connected = false, connecting = true, error = null)
+                delay(RECONNECT_MILLIS)
             }
         }
     }
 
-    private fun onRemoteReading(reading: EnvironmentReading) {
+    /** Abre una conexión con el sensor y recibe mensajes hasta que se corte. */
+    private fun openSession(host: String, port: Int, onConnected: () -> Unit) {
+        val socket = Socket()
+        var peer: Peer? = null
+        try {
+            socket.connect(InetSocketAddress(host, port), 5_000)
+            peer = Peer(socket)
+            sensorPeer = peer
+
+            peer.send(LinkMessage(tipo = "hola", nombre = deviceName))
+            socket.soTimeout = 5_000
+            val welcome = peer.read() ?: throw IOException("PIN incorrecto")
+            // Si pasan 10 segundos sin mensajes, la conexión se da por perdida.
+            socket.soTimeout = SILENCE_TIMEOUT_MILLIS
+            onConnected()
+            _state.value = _state.value.copy(
+                connecting = false,
+                connected = true,
+                error = null,
+                peerName = welcome.nombre.orEmpty(),
+                actuators = welcome.actuadores ?: Actuators()
+            )
+
+            while (true) {
+                val message = try {
+                    peer.read()
+                } catch (e: SocketTimeoutException) {
+                    // Con el envío en pausa es normal que no lleguen lecturas.
+                    if (_state.value.actuators.paused) continue else throw e
+                } ?: break
+                when (message.tipo) {
+                    "lectura" -> message.lectura?.let { onSensorReading(it) }
+                    "estado" -> message.actuadores?.let { _state.value = _state.value.copy(actuators = it) }
+                }
+            }
+        } finally {
+            runCatching { socket.close() }
+            if (sensorPeer === peer) sensorPeer = null
+        }
+    }
+
+    private fun onSensorReading(received: EnvironmentReading) {
+        // El ESP8266 no tiene reloj, así que la hora la pone el teléfono al recibirla.
+        val reading = received.copy(timestampMillis = System.currentTimeMillis())
         lastReading = reading
         _readings.tryEmit(reading)
-        // El monitor guarda en SQLite una lectura cada 15 segundos para no llenar la base.
+        // Se guarda en SQLite una lectura cada 15 segundos para no llenar la base.
         if (reading.timestampMillis - lastSavedMillis >= AUTO_SAVE_MILLIS) {
             lastSavedMillis = reading.timestampMillis
             database.insertReading(reading, EnvironmentRepository.MAX_HISTORY)
@@ -258,7 +178,7 @@ class WifiLink(
     fun sendCommand(actuators: Actuators) {
         if (_state.value.role != LinkRole.MONITOR) return
         _state.value = _state.value.copy(actuators = actuators)
-        scope.launch { runCatching { monitorPeer?.send(LinkMessage(tipo = "comando", actuadores = actuators)) } }
+        scope.launch { runCatching { sensorPeer?.send(LinkMessage(tipo = "comando", actuadores = actuators)) } }
     }
 
     // ===================== Búsqueda con NSD =====================
@@ -306,51 +226,19 @@ class WifiLink(
         })
     }
 
-    private fun registerService() {
-        val info = NsdServiceInfo().apply {
-            serviceName = "ClimaPulse ${Build.MODEL}"
-            serviceType = SERVICE_TYPE
-            port = PORT
-        }
-        val listener = object : NsdManager.RegistrationListener {
-            override fun onServiceRegistered(info: NsdServiceInfo) = Unit
-            override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
-            override fun onServiceUnregistered(info: NsdServiceInfo) = Unit
-            override fun onUnregistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
-        }
-        nsdRegistration = listener
-        runCatching { nsdManager.registerService(info, NsdManager.PROTOCOL_DNS_SD, listener) }
-    }
-
     // ===================== Común =====================
 
-    /** Detiene el enlace, sea cual sea el modo. */
+    /** Cierra la conexión con el sensor. */
     fun stop() {
         _state.value = LinkState()
         job?.cancel()
         job = null
-        runCatching { serverSocket?.close() }
-        serverSocket = null
-        monitorPeer?.close()
-        synchronized(connectedMonitors) {
-            connectedMonitors.forEach { it.close() }
-            connectedMonitors.clear()
-        }
-        nsdRegistration?.let { runCatching { nsdManager.unregisterService(it) } }
-        nsdRegistration = null
+        sensorPeer?.close()
         lastReading = null
     }
 
     fun clearError() {
         _state.value = _state.value.copy(error = null)
-    }
-
-    private fun localIpAddress(): String? {
-        val properties = connectivityManager.getLinkProperties(connectivityManager.activeNetwork) ?: return null
-        return properties.linkAddresses
-            .map { it.address }
-            .firstOrNull { it is Inet4Address && !it.isLoopbackAddress }
-            ?.hostAddress
     }
 
     /** Un socket con lectura y escritura de mensajes cifrados. */
@@ -368,7 +256,7 @@ class WifiLink(
             }
         }
 
-        /** Devuelve null si el otro teléfono cerró la conexión. */
+        /** Devuelve null si el sensor cerró la conexión. */
         fun read(): LinkMessage? {
             val line = reader.readLine() ?: return null
             return json.decodeFromString(LinkMessage.serializer(), cipher.decrypt(line))
@@ -382,7 +270,8 @@ class WifiLink(
     companion object {
         const val PORT = 5050
         const val SERVICE_TYPE = "_climapulse._tcp."
-        const val SEND_INTERVAL_MILLIS = 3_000L
         const val AUTO_SAVE_MILLIS = 15_000L
+        const val RECONNECT_MILLIS = 3_000L
+        const val SILENCE_TIMEOUT_MILLIS = 10_000
     }
 }
