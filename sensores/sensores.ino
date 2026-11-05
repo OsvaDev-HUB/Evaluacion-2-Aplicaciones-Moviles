@@ -20,6 +20,15 @@ constexpr uint8_t PIN_LAMPARA = D4;      // LED del ESP8266 (aqui iria el rele d
 // Si la luz sube cuando tapas el LDR, cambia esto a false.
 constexpr bool INVERTIR_LUZ = true;
 
+// Calibracion del DHT11: se compara con un termometro/higrometro de referencia
+// y se suma la diferencia. Ejemplo: si el DHT11 marca 25.0 y la referencia 23.8,
+// AJUSTE_TEMPERATURA = -1.2
+constexpr float AJUSTE_TEMPERATURA = 0.0;
+constexpr float AJUSTE_HUMEDAD = 0.0;
+
+// Se envia el promedio de las ultimas lecturas para quitar los saltos.
+constexpr int LECTURAS_PROMEDIO = 5;
+
 constexpr uint16_t PUERTO = 5050;
 constexpr unsigned long INTERVALO_ENVIO = 3000;  // una lectura cada 3 segundos
 constexpr int MAX_MONITORES = 3;
@@ -155,13 +164,36 @@ void aplicarActuadores() {
 
 // ===================== Lecturas =====================
 
+// Ultimas lecturas del DHT11 para sacar el promedio
+float historialTemperatura[LECTURAS_PROMEDIO];
+float historialHumedad[LECTURAS_PROMEDIO];
+int lecturasGuardadas = 0;
+int posicionHistorial = 0;
+
 void enviarLectura() {
-  float humedad = dht.readHumidity();
-  float temperatura = dht.readTemperature();
-  if (isnan(humedad) || isnan(temperatura)) {
+  float humedadCruda = dht.readHumidity();
+  float temperaturaCruda = dht.readTemperature();
+  if (isnan(humedadCruda) || isnan(temperaturaCruda)) {
     Serial.println("Error al leer el DHT11; revisa su conexion.");
     return;
   }
+
+  // Se guarda la lectura nueva encima de la mas antigua
+  historialTemperatura[posicionHistorial] = temperaturaCruda;
+  historialHumedad[posicionHistorial] = humedadCruda;
+  posicionHistorial = (posicionHistorial + 1) % LECTURAS_PROMEDIO;
+  if (lecturasGuardadas < LECTURAS_PROMEDIO) lecturasGuardadas++;
+
+  float sumaTemperatura = 0;
+  float sumaHumedad = 0;
+  for (int i = 0; i < lecturasGuardadas; i++) {
+    sumaTemperatura += historialTemperatura[i];
+    sumaHumedad += historialHumedad[i];
+  }
+
+  // Promedio + ajuste de calibracion. La humedad no puede salir de 0 a 100 %.
+  float temperatura = sumaTemperatura / lecturasGuardadas + AJUSTE_TEMPERATURA;
+  float humedad = constrain(sumaHumedad / lecturasGuardadas + AJUSTE_HUMEDAD, 0.0f, 100.0f);
 
   // A0 entrega 0 a 1023. Se pasa a una escala de 0 a 1000 para la app.
   // analogRead puede llegar a 1024, por eso se limita a 1023.
@@ -169,7 +201,9 @@ void enviarLectura() {
   if (INVERTIR_LUZ) lecturaLuz = 1023 - lecturaLuz;
   float luz = lecturaLuz * 1000.0 / 1023.0;
 
-  Serial.printf("Temperatura: %.1f C | Humedad: %.1f %% | Luz: %.0f\n", temperatura, humedad, luz);
+  // Entre parentesis va la lectura cruda del DHT11 (sirve para calibrar)
+  Serial.printf("Temperatura: %.1f C (cruda %.1f) | Humedad: %.1f %% (cruda %.1f) | Luz: %.0f\n",
+                temperatura, temperaturaCruda, humedad, humedadCruda, luz);
 
   // La hora la pone el telefono al recibirla (el ESP8266 no tiene reloj).
   ultimaLectura = "{\"temperature\":" + String(temperatura, 1) +
