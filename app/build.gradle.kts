@@ -2,16 +2,17 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.services)
 }
 
 android {
-    namespace = "com.example.climapulse"
+    namespace = "cl.osvaldouhart.climapulse"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.climapulse"
+        applicationId = "cl.osvaldouhart.climapulse"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
@@ -56,6 +57,10 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.biometric)
     implementation(libs.kotlinx.serialization.json)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
