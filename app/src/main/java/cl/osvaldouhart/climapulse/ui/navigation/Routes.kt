@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class LoginRoute(val biometricUnlock: Boolean = false)
 @Serializable data object RegisterRoute
 @Serializable data class RecoveryRoute(val email: String = "")
+@Serializable data object VerifyEmailRoute
 @Serializable data object HomeRoute
 @Serializable data class MetricDetailRoute(val metric: Metric)
 @Serializable data object EditProfileRoute

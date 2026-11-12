@@ -63,7 +63,8 @@ fun RecoveryScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Text(
-                "Enviamos un enlace a ${viewModel.email.trim()} para que crees una nueva contraseña. Puede tardar un par de minutos.",
+                "Si ${viewModel.email.trim()} tiene una cuenta en ClimaPulse, te llegará un enlace para crear una nueva contraseña. " +
+                    "Puede tardar un par de minutos; revisa también la carpeta de spam.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

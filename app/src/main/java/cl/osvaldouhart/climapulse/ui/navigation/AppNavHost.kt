@@ -19,6 +19,7 @@ import cl.osvaldouhart.climapulse.data.StartDestination
 import cl.osvaldouhart.climapulse.ui.auth.LoginScreen
 import cl.osvaldouhart.climapulse.ui.auth.RecoveryScreen
 import cl.osvaldouhart.climapulse.ui.auth.RegisterScreen
+import cl.osvaldouhart.climapulse.ui.auth.VerifyEmailScreen
 import cl.osvaldouhart.climapulse.ui.components.LocalMessenger
 import cl.osvaldouhart.climapulse.ui.components.Messenger
 import cl.osvaldouhart.climapulse.ui.detail.MetricDetailScreen
@@ -53,20 +54,28 @@ fun ClimaPulseNavHost(startDestination: StartDestination) {
             composable<LoginRoute> { entry ->
                 LoginScreen(
                     biometricUnlock = entry.toRoute<LoginRoute>().biometricUnlock,
-                    onLoggedIn = { navController.clearAndNavigate(HomeRoute) },
+                    onLoggedIn = { verified ->
+                        navController.clearAndNavigate(if (verified) HomeRoute else VerifyEmailRoute)
+                    },
                     onRegister = dropUnlessResumed { navController.navigate(RegisterRoute) },
                     onForgotPassword = { email -> navController.navigate(RecoveryRoute(email)) }
                 )
             }
             composable<RegisterRoute> {
                 RegisterScreen(
-                    onRegistered = { navController.clearAndNavigate(HomeRoute) },
+                    onRegistered = { navController.clearAndNavigate(VerifyEmailRoute) },
                     onOpenTerms = dropUnlessResumed { navController.navigate(TermsRoute) },
                     onBack = dropUnlessResumed { navController.popBackStack() }
                 )
             }
             composable<RecoveryRoute> {
                 RecoveryScreen(onBack = dropUnlessResumed { navController.popBackStack() })
+            }
+            composable<VerifyEmailRoute> {
+                VerifyEmailScreen(
+                    onVerified = { navController.clearAndNavigate(HomeRoute) },
+                    onLoggedOut = { navController.clearAndNavigate(LoginRoute()) }
+                )
             }
             composable<HomeRoute> {
                 HomeScaffold(
@@ -101,5 +110,6 @@ private fun NavHostController.clearAndNavigate(route: Any) {
 private fun routeFor(destination: StartDestination): Any = when (destination) {
     StartDestination.Onboarding -> OnboardingRoute
     is StartDestination.Login -> LoginRoute(biometricUnlock = destination.biometricUnlock)
+    StartDestination.VerifyEmail -> VerifyEmailRoute
     StartDestination.Home -> HomeRoute
 }

@@ -14,9 +14,11 @@ import androidx.lifecycle.viewmodel.compose.saveable
 import androidx.navigation.toRoute
 import cl.osvaldouhart.climapulse.data.AuthException
 import cl.osvaldouhart.climapulse.data.SessionRepository
+import cl.osvaldouhart.climapulse.data.validateNewPassword
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
 import cl.osvaldouhart.climapulse.ui.navigation.RecoveryRoute
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -29,8 +31,7 @@ internal fun validateEmail(email: String): String? = when {
     else -> null
 }
 
-internal fun validatePassword(password: String): String? =
-    if (password.length < 6) "Usa al menos 6 caracteres" else null
+internal fun validatePassword(password: String): String? = validateNewPassword(password)
 
 /**
  * Los campos viven en el ViewModel (y en SavedStateHandle), por lo que no se borran
@@ -65,7 +66,8 @@ class LoginViewModel(
     var canUseBiometric by mutableStateOf(false)
         private set
 
-    private val _loggedIn = Channel<Unit>(Channel.BUFFERED)
+    // true = correo verificado (va al Inicio); false = falta verificar el correo.
+    private val _loggedIn = Channel<Boolean>(Channel.BUFFERED)
     val loggedIn = _loggedIn.receiveAsFlow()
 
     init {
@@ -84,7 +86,7 @@ class LoginViewModel(
     fun onBiometricSuccess() {
         viewModelScope.launch {
             if (session.unlockSession()) {
-                _loggedIn.send(Unit)
+                _loggedIn.send(true)
             } else {
                 errorMessage = "Tu sesión expiró. Ingresa con tu correo y contraseña."
             }
@@ -95,14 +97,13 @@ class LoginViewModel(
         errorMessage = message
     }
 
-    private fun authenticate(block: suspend () -> Unit) {
+    private fun authenticate(block: suspend () -> Boolean) {
         if (loading) return
         viewModelScope.launch {
             loading = true
             errorMessage = null
             try {
-                block()
-                _loggedIn.send(Unit)
+                _loggedIn.send(block())
             } catch (e: AuthException) {
                 errorMessage = e.message
             } catch (e: Exception) {
@@ -258,5 +259,95 @@ class RecoveryViewModel(
 
     companion object {
         val Factory = appViewModelFactory { c, handle -> RecoveryViewModel(c.sessionRepository, handle) }
+    }
+}
+
+/**
+ * Pantalla "Verifica tu correo": la cuenta no entra al Inicio hasta abrir el enlace
+ * que Firebase envía al correo. Así se confirma que el correo es realmente del usuario.
+ */
+class VerifyEmailViewModel(private val session: SessionRepository) : ViewModel() {
+    var email by mutableStateOf("")
+        private set
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+    var infoMessage by mutableStateOf<String?>(null)
+        private set
+    var checking by mutableStateOf(false)
+        private set
+    var resending by mutableStateOf(false)
+        private set
+
+    // Espera entre reenvíos para no gastar el límite de correos de Firebase.
+    var resendSeconds by mutableStateOf(0)
+        private set
+
+    private val _verified = Channel<Unit>(Channel.BUFFERED)
+    val verified = _verified.receiveAsFlow()
+
+    init {
+        viewModelScope.launch { email = session.profile.first().email }
+        startResendCountdown()
+    }
+
+    fun checkVerified() {
+        if (checking) return
+        viewModelScope.launch {
+            checking = true
+            errorMessage = null
+            infoMessage = null
+            try {
+                if (session.checkEmailVerified()) {
+                    _verified.send(Unit)
+                } else {
+                    errorMessage = "Todavía no aparece verificado. Abre el enlace del correo y vuelve a intentar."
+                }
+            } catch (e: AuthException) {
+                errorMessage = e.message
+            } finally {
+                checking = false
+            }
+        }
+    }
+
+    fun resend() {
+        if (resending || resendSeconds > 0) return
+        viewModelScope.launch {
+            resending = true
+            errorMessage = null
+            infoMessage = null
+            try {
+                session.resendVerificationEmail()
+                infoMessage = "Te enviamos un nuevo enlace. Revisa también la carpeta de spam."
+                startResendCountdown()
+            } catch (e: AuthException) {
+                errorMessage = e.message
+            } finally {
+                resending = false
+            }
+        }
+    }
+
+    fun logout(onDone: () -> Unit) {
+        viewModelScope.launch {
+            session.logout()
+            onDone()
+        }
+    }
+
+    private fun startResendCountdown() {
+        viewModelScope.launch {
+            resendSeconds = RESEND_WAIT_SECONDS
+            while (resendSeconds > 0) {
+                delay(1_000)
+                resendSeconds--
+            }
+        }
+    }
+
+    companion object {
+        private const val RESEND_WAIT_SECONDS = 60
+
+        val Factory = appViewModelFactory { c, _ -> VerifyEmailViewModel(c.sessionRepository) }
     }
 }

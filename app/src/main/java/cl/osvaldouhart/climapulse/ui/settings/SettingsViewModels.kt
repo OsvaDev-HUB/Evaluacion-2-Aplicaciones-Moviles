@@ -15,7 +15,6 @@ import cl.osvaldouhart.climapulse.data.SessionRepository
 import cl.osvaldouhart.climapulse.data.ThemeMode
 import cl.osvaldouhart.climapulse.data.UserProfile
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
-import cl.osvaldouhart.climapulse.ui.auth.validateEmail
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -79,13 +78,9 @@ class EditProfileViewModel(
             _name = value
             nameError = null
         }
-    private var _email by savedStateHandle.saveable { mutableStateOf("") }
-    var email: String
-        get() = _email
-        set(value) {
-            _email = value
-            emailError = null
-        }
+    // El correo solo se muestra: cambiarlo requiere verificar el correo nuevo.
+    var email by savedStateHandle.saveable { mutableStateOf("") }
+        private set
     private var _phone by savedStateHandle.saveable { mutableStateOf("") }
     var phone: String
         get() = _phone
@@ -97,7 +92,7 @@ class EditProfileViewModel(
 
     var nameError by mutableStateOf<String?>(null)
         private set
-    var emailError by mutableStateOf<String?>(null)
+    var errorMessage by mutableStateOf<String?>(null)
         private set
     var phoneError by mutableStateOf<String?>(null)
         private set
@@ -122,16 +117,16 @@ class EditProfileViewModel(
 
     fun save() {
         nameError = if (name.isBlank()) "Ingresa tu nombre" else null
-        emailError = validateEmail(email)
         phoneError = if (phone.isNotBlank() && phone.count(Char::isDigit) < 8) "Revisa el número de teléfono" else null
-        if (nameError != null || emailError != null || phoneError != null) return
+        if (nameError != null || phoneError != null) return
         viewModelScope.launch {
             saving = true
+            errorMessage = null
             try {
-                session.updateProfile(UserProfile(name.trim(), email.trim(), phone.trim()))
+                session.updateProfile(name.trim(), phone.trim())
                 _saved.send(Unit)
             } catch (e: AuthException) {
-                emailError = e.message
+                errorMessage = e.message
             } finally {
                 saving = false
             }

@@ -8,19 +8,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Fila de la tabla usuarios. La contraseña nunca se guarda, solo su hash y su sal. */
-data class UserRow(
-    val name: String,
-    val email: String,
-    val phone: String,
-    val passwordHash: String,
-    val salt: String
-)
-
 /**
- * Base de datos local SQLite con dos tablas:
- * - usuarios: cuentas para el login (autenticación sin conexión).
- * - lecturas: mediciones de temperatura, humedad y luz.
+ * Base de datos local SQLite con la tabla lecturas (temperatura, humedad y luz).
+ * Las cuentas ya no se guardan aquí: las maneja Firebase Authentication.
  * Todas las consultas usan parámetros (?) para evitar inyección SQL.
  */
 class AppDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
@@ -30,18 +20,6 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, D
     val readingsVersion: StateFlow<Int> = _readingsVersion.asStateFlow()
 
     override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL(
-            """
-            CREATE TABLE usuarios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                correo TEXT NOT NULL UNIQUE,
-                telefono TEXT,
-                hash TEXT NOT NULL,
-                sal TEXT NOT NULL
-            )
-            """.trimIndent()
-        )
         db.execSQL(
             """
             CREATE TABLE lecturas (
@@ -57,51 +35,9 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, D
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS usuarios")
-        db.execSQL("DROP TABLE IF EXISTS lecturas")
-        onCreate(db)
-    }
-
-    // ---------- Usuarios ----------
-
-    fun insertUser(user: UserRow): Boolean {
-        val values = ContentValues().apply {
-            put("nombre", user.name)
-            put("correo", user.email)
-            put("telefono", user.phone)
-            put("hash", user.passwordHash)
-            put("sal", user.salt)
-        }
-        // insert devuelve -1 si el correo ya existe (columna UNIQUE).
-        return writableDatabase.insert("usuarios", null, values) != -1L
-    }
-
-    fun findUser(email: String): UserRow? {
-        val cursor = readableDatabase.rawQuery(
-            "SELECT nombre, correo, telefono, hash, sal FROM usuarios WHERE correo = ?",
-            arrayOf(email)
-        )
-        cursor.use {
-            if (!it.moveToFirst()) return null
-            return UserRow(
-                name = it.getString(0),
-                email = it.getString(1),
-                phone = it.getString(2).orEmpty(),
-                passwordHash = it.getString(3),
-                salt = it.getString(4)
-            )
-        }
-    }
-
-    fun updateUser(oldEmail: String, name: String, email: String, phone: String): Boolean {
-        val values = ContentValues().apply {
-            put("nombre", name)
-            put("correo", email)
-            put("telefono", phone)
-        }
-        return runCatching {
-            writableDatabase.update("usuarios", values, "correo = ?", arrayOf(oldEmail)) > 0
-        }.getOrDefault(false)
+        // Versión 2: las cuentas pasan a Firebase, así que se borra la tabla usuarios
+        // (tenía los hashes de las contraseñas). Las lecturas se conservan.
+        if (oldVersion < 2) db.execSQL("DROP TABLE IF EXISTS usuarios")
     }
 
     // ---------- Lecturas ----------
@@ -153,6 +89,6 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, D
 
     private companion object {
         const val DB_NAME = "climapulse.db"
-        const val DB_VERSION = 1
+        const val DB_VERSION = 2
     }
 }

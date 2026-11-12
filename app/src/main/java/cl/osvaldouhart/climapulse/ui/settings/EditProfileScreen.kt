@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.osvaldouhart.climapulse.ui.auth.AuthLayout
+import cl.osvaldouhart.climapulse.ui.auth.FormErrorBanner
 import cl.osvaldouhart.climapulse.ui.components.BackTopBar
 import cl.osvaldouhart.climapulse.ui.components.ClimaTextField
 import cl.osvaldouhart.climapulse.ui.components.LocalMessenger
@@ -52,13 +53,14 @@ fun EditProfileScreen(
             error = viewModel.nameError,
             modifier = reveal
         )
+        FormErrorBanner(viewModel.errorMessage)
         ClimaTextField(
             value = viewModel.email,
-            onValueChange = { viewModel.email = it },
+            onValueChange = {},
             label = "Correo electrónico",
             keyboardType = KeyboardType.Email,
             leadingIcon = Icons.Rounded.Mail,
-            error = viewModel.emailError,
+            enabled = false,
             modifier = reveal
         )
         ClimaTextField(

@@ -40,7 +40,7 @@ import cl.osvaldouhart.climapulse.ui.components.revealOnFocus
 @Composable
 fun LoginScreen(
     biometricUnlock: Boolean,
-    onLoggedIn: () -> Unit,
+    onLoggedIn: (verified: Boolean) -> Unit,
     onRegister: () -> Unit,
     onForgotPassword: (String) -> Unit,
     viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory)
@@ -63,7 +63,7 @@ fun LoginScreen(
         )
     }
 
-    LaunchedEffect(viewModel) { viewModel.loggedIn.collect { onLoggedIn() } }
+    LaunchedEffect(viewModel) { viewModel.loggedIn.collect { verified -> onLoggedIn(verified) } }
     LaunchedEffect(showBiometric) {
         if (biometricUnlock && showBiometric && !autoPromptShown) {
             autoPromptShown = true
