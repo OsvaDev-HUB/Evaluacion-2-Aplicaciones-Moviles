@@ -19,3 +19,8 @@ app/build/
 # Herramienta arduino-cli descargada (binario)
 /bin/
 .kotlin/
+
+# Firebase: configuracion local y archivos temporales de la CLI
+app/google-services.json
+.firebase/
+firebase-debug.log
