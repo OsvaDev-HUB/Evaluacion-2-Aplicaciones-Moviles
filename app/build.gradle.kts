@@ -5,13 +5,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.climapulse"
+    namespace = "cl.osvaldouhart.climapulse"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.climapulse"
+        applicationId = "cl.osvaldouhart.climapulse"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

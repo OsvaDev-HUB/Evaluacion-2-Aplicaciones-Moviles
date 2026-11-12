@@ -18,3 +18,4 @@ app/build/
 
 # Herramienta arduino-cli descargada (binario)
 /bin/
+.kotlin/
