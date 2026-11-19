@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
+import com.google.firebase.auth.AuthCredential
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -69,6 +71,11 @@ class SessionRepository(
 
     val profile: Flow<UserProfile> = currentUser.flatMapLatest { user ->
         if (user == null) flowOf(UserProfile("", "", "")) else userDocument(user)
+    }
+
+    // true si la cuenta tiene contraseña (las cuentas creadas solo con Google no tienen).
+    val hasPassword: Flow<Boolean> = currentUser.map { user ->
+        user?.providerData?.any { it.providerId == EmailAuthProvider.PROVIDER_ID } == true
     }
 
     val biometricEnabled: Flow<Boolean> = dataStore.data.map { it[BIOMETRIC_ENABLED] ?: false }
@@ -138,7 +145,9 @@ class SessionRepository(
         val user = result.user ?: throw AuthException(GENERIC_MESSAGE)
         if (result.additionalUserInfo?.isNewUser == true) {
             // Cuenta nueva: se crea el documento con el nombre de Google y el teléfono vacío.
-            saveUserDocument(user.uid, user.displayName.orEmpty(), "")
+            // Si la cuenta de Google no tiene nombre se usa lo que va antes de la @ del correo.
+            val name = user.displayName?.takeIf { it.isNotBlank() } ?: user.email.orEmpty().substringBefore("@")
+            saveUserDocument(user.uid, name.take(60), "")
         }
         return user.isEmailVerified
     }
@@ -202,6 +211,55 @@ class SessionRepository(
         // Así la próxima vez el selector de Google vuelve a preguntar qué cuenta usar.
         runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
         dataStore.edit { it[BIOMETRIC_ENABLED] = false }
+    }
+
+    // Para cambiar la contraseña Firebase pide haber ingresado hace poco, por eso se confirma la actual primero.
+    suspend fun changePassword(currentPassword: String, newPassword: String) {
+        validateNewPassword(newPassword)?.let { throw AuthException(it) }
+        if (newPassword == currentPassword) throw AuthException("La nueva contraseña debe ser distinta a la actual.")
+        val user = auth.currentUser ?: throw AuthException(SESSION_EXPIRED)
+        reauthenticate(user, EmailAuthProvider.getCredential(user.email.orEmpty(), currentPassword))
+        try {
+            user.updatePassword(newPassword).await()
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = GENERIC_MESSAGE)
+        }
+    }
+
+    // Borra la cuenta y sus datos. Se confirma la identidad con la contraseña o con Google
+    // (según cómo se creó la cuenta) para que nadie la borre con el teléfono desbloqueado.
+    suspend fun deleteAccount(password: String?, googleIdToken: String?) {
+        val user = auth.currentUser ?: throw AuthException(SESSION_EXPIRED)
+        val credential = when {
+            password != null -> EmailAuthProvider.getCredential(user.email.orEmpty(), password)
+            googleIdToken != null -> GoogleAuthProvider.getCredential(googleIdToken, null)
+            else -> throw AuthException(GENERIC_MESSAGE)
+        }
+        reauthenticate(user, credential)
+        val uid = user.uid
+        try {
+            // Primero los datos en Firestore: una vez borrada la cuenta, las reglas ya no dejarían hacerlo.
+            firestore.collection(USERS).document(uid).delete().await()
+            user.delete().await()
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = GENERIC_MESSAGE)
+        }
+        dataStore.edit {
+            it.remove(introKey(uid))
+            it[BIOMETRIC_ENABLED] = false
+        }
+        runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
+    }
+
+    private suspend fun reauthenticate(user: FirebaseUser, credential: AuthCredential) {
+        try {
+            user.reauthenticate(credential).await()
+        } catch (e: FirebaseAuthInvalidUserException) {
+            // Pasa cuando se elige en Google una cuenta distinta a la que tiene la sesión abierta.
+            throw AuthException("Esa no es la cuenta con la que ingresaste. Elige la misma cuenta.")
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = "La contraseña actual no es correcta.")
+        }
     }
 
     /** Cambia nombre y teléfono. El correo se cambiará en la sección de seguridad de la cuenta. */

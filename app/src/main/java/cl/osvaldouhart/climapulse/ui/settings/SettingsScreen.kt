@@ -35,7 +35,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.LockReset
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Info
@@ -94,6 +96,8 @@ fun SettingsScreen(
     linkState: LinkState,
     onRefresh: () -> Unit,
     onEditProfile: () -> Unit,
+    onChangePassword: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onOpenTerms: () -> Unit,
     onLoggedOut: () -> Unit,
     onReplayTour: () -> Unit,
@@ -104,6 +108,7 @@ fun SettingsScreen(
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val notifications by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     val autoRefresh by viewModel.autoRefreshEnabled.collectAsStateWithLifecycle()
+    val hasPassword by viewModel.hasPassword.collectAsStateWithLifecycle()
     val biometric by viewModel.biometricEnabled.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val showWelcome by viewModel.showWelcome.collectAsStateWithLifecycle()
@@ -220,6 +225,23 @@ fun SettingsScreen(
                 checked = biometric && biometricAvailable,
                 enabled = biometricAvailable,
                 onCheckedChange = ::onBiometricChanged
+            )
+            // Las cuentas creadas con Google no tienen contraseña propia: la maneja Google.
+            if (hasPassword) {
+                SettingsDivider()
+                SettingsRow(
+                    icon = Icons.Rounded.LockReset,
+                    title = "Cambiar contraseña",
+                    subtitle = "Pide tu contraseña actual para confirmar",
+                    onClick = onChangePassword
+                )
+            }
+            SettingsDivider()
+            SettingsRow(
+                icon = Icons.Rounded.DeleteForever,
+                title = "Eliminar cuenta",
+                subtitle = "Borra tu cuenta y tus datos para siempre",
+                onClick = onDeleteAccount
             )
         }
 

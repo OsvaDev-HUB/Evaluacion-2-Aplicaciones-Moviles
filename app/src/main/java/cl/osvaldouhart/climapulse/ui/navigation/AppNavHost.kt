@@ -25,6 +25,8 @@ import cl.osvaldouhart.climapulse.ui.components.Messenger
 import cl.osvaldouhart.climapulse.ui.detail.MetricDetailScreen
 import cl.osvaldouhart.climapulse.ui.home.HomeScaffold
 import cl.osvaldouhart.climapulse.ui.onboarding.OnboardingScreen
+import cl.osvaldouhart.climapulse.ui.settings.ChangePasswordScreen
+import cl.osvaldouhart.climapulse.ui.settings.DeleteAccountScreen
 import cl.osvaldouhart.climapulse.ui.settings.EditProfileScreen
 import cl.osvaldouhart.climapulse.ui.settings.TermsScreen
 
@@ -81,6 +83,8 @@ fun ClimaPulseNavHost(startDestination: StartDestination) {
                 HomeScaffold(
                     onOpenMetric = { metric -> navController.navigate(MetricDetailRoute(metric)) },
                     onEditProfile = dropUnlessResumed { navController.navigate(EditProfileRoute) },
+                    onChangePassword = dropUnlessResumed { navController.navigate(ChangePasswordRoute) },
+                    onDeleteAccount = dropUnlessResumed { navController.navigate(DeleteAccountRoute) },
                     onOpenTerms = dropUnlessResumed { navController.navigate(TermsRoute) },
                     onLoggedOut = { navController.clearAndNavigate(LoginRoute()) }
                 )
@@ -90,6 +94,15 @@ fun ClimaPulseNavHost(startDestination: StartDestination) {
             }
             composable<EditProfileRoute> {
                 EditProfileScreen(onBack = dropUnlessResumed { navController.popBackStack() })
+            }
+            composable<ChangePasswordRoute> {
+                ChangePasswordScreen(onBack = dropUnlessResumed { navController.popBackStack() })
+            }
+            composable<DeleteAccountRoute> {
+                DeleteAccountScreen(
+                    onBack = dropUnlessResumed { navController.popBackStack() },
+                    onDeleted = { navController.clearAndNavigate(LoginRoute()) }
+                )
             }
             composable<TermsRoute> {
                 TermsScreen(onBack = dropUnlessResumed { navController.popBackStack() })

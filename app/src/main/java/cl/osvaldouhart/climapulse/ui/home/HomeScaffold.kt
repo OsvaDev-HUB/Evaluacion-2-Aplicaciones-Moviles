@@ -87,6 +87,8 @@ private val tabs = listOf(
 fun HomeScaffold(
     onOpenMetric: (Metric) -> Unit,
     onEditProfile: () -> Unit,
+    onChangePassword: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onOpenTerms: () -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
@@ -162,6 +164,8 @@ fun HomeScaffold(
                                 linkState = linkState,
                                 onRefresh = { viewModel.refresh() },
                                 onEditProfile = onEditProfile,
+                                onChangePassword = onChangePassword,
+                                onDeleteAccount = onDeleteAccount,
                                 onOpenTerms = onOpenTerms,
                                 onLoggedOut = onLoggedOut,
                                 onReplayTour = {
