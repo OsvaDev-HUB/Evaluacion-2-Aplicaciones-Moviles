@@ -1,6 +1,7 @@
 package cl.osvaldouhart.climapulse
 
 import android.app.Application
+import androidx.credentials.CredentialManager
 import cl.osvaldouhart.climapulse.data.AlertNotifier
 import cl.osvaldouhart.climapulse.data.AppDatabase
 import cl.osvaldouhart.climapulse.data.ConnectivityObserver
@@ -22,6 +23,11 @@ class AppContainer(application: Application) {
     val alertNotifier = AlertNotifier(application)
     // El enlace vive en el contenedor para que la conexión siga activa al cambiar de pantalla.
     val wifiLink = WifiLink(application, database)
-    val sessionRepository = SessionRepository(application.appDataStore, FirebaseAuth.getInstance(), FirebaseFirestore.getInstance())
+    val sessionRepository = SessionRepository(
+        application.appDataStore,
+        FirebaseAuth.getInstance(),
+        FirebaseFirestore.getInstance(),
+        CredentialManager.create(application)
+    )
     val environmentRepository = EnvironmentRepository(application.appDataStore, database, wifiLink)
 }

@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.compose.SavedStateHandleSaveableApi
 import androidx.lifecycle.viewmodel.compose.saveable
 import androidx.navigation.toRoute
 import cl.osvaldouhart.climapulse.data.AuthException
+import cl.osvaldouhart.climapulse.data.ConnectivityObserver
 import cl.osvaldouhart.climapulse.data.SessionRepository
 import cl.osvaldouhart.climapulse.data.validateNewPassword
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
@@ -39,6 +40,7 @@ internal fun validatePassword(password: String): String? = validateNewPassword(p
  */
 class LoginViewModel(
     private val session: SessionRepository,
+    private val connectivity: ConnectivityObserver,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private var _email by savedStateHandle.saveable { mutableStateOf("") }
@@ -83,6 +85,19 @@ class LoginViewModel(
         authenticate { session.login(email.trim(), password) }
     }
 
+    // getToken abre el selector de Google; si devuelve null el usuario lo cerró y no se muestra error.
+    fun signInWithGoogle(getToken: suspend () -> String?) {
+        // Sin internet Google cierra el selector como si el usuario lo hubiera cancelado, por eso se avisa antes.
+        if (!connectivity.isOnline()) {
+            errorMessage = "No hay conexión a internet. Revisa tu conexión e intenta de nuevo."
+            return
+        }
+        authenticate {
+            val token = getToken() ?: return@authenticate null
+            session.signInWithGoogle(token)
+        }
+    }
+
     fun onBiometricSuccess() {
         viewModelScope.launch {
             if (session.unlockSession()) {
@@ -97,13 +112,13 @@ class LoginViewModel(
         errorMessage = message
     }
 
-    private fun authenticate(block: suspend () -> Boolean) {
+    private fun authenticate(block: suspend () -> Boolean?) {
         if (loading) return
         viewModelScope.launch {
             loading = true
             errorMessage = null
             try {
-                _loggedIn.send(block())
+                block()?.let { _loggedIn.send(it) }
             } catch (e: AuthException) {
                 errorMessage = e.message
             } catch (e: Exception) {
@@ -115,7 +130,7 @@ class LoginViewModel(
     }
 
     companion object {
-        val Factory = appViewModelFactory { c, handle -> LoginViewModel(c.sessionRepository, handle) }
+        val Factory = appViewModelFactory { c, handle -> LoginViewModel(c.sessionRepository, c.connectivity, handle) }
     }
 }
 

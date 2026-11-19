@@ -150,7 +150,7 @@ fun SettingsScreen(
     if (confirmLogout) {
         ConfirmDialog(
             title = "¿Cerrar sesión?",
-            message = "Tendrás que ingresar de nuevo con tu correo y contraseña.",
+            message = "Tendrás que ingresar de nuevo para ver tus datos.",
             confirmLabel = "Cerrar sesión",
             icon = Icons.AutoMirrored.Rounded.Logout,
             destructive = true,

@@ -1,5 +1,7 @@
 package cl.osvaldouhart.climapulse.data
 
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -14,6 +16,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -49,7 +52,8 @@ sealed interface StartDestination {
 class SessionRepository(
     private val dataStore: DataStore<Preferences>,
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val credentialManager: CredentialManager
 ) {
     init {
         // Los correos de verificación y de recuperación llegan en español.
@@ -123,6 +127,22 @@ class SessionRepository(
         return user.isEmailVerified
     }
 
+    // Entra (o crea la cuenta la primera vez) con el token que entrega el selector de Google.
+    // Google ya verificó el correo, así que estas cuentas van directo al Inicio.
+    suspend fun signInWithGoogle(idToken: String): Boolean {
+        val result = try {
+            auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = "La cuenta de Google no es válida. Intenta con otra.")
+        }
+        val user = result.user ?: throw AuthException(GENERIC_MESSAGE)
+        if (result.additionalUserInfo?.isNewUser == true) {
+            // Cuenta nueva: se crea el documento con el nombre de Google y el teléfono vacío.
+            saveUserDocument(user.uid, user.displayName.orEmpty(), "")
+        }
+        return user.isEmailVerified
+    }
+
     suspend fun register(name: String, email: String, phone: String, password: String) {
         validateNewPassword(password)?.let { throw AuthException(it) }
         val user = try {
@@ -179,6 +199,8 @@ class SessionRepository(
 
     suspend fun logout() {
         auth.signOut()
+        // Así la próxima vez el selector de Google vuelve a preguntar qué cuenta usar.
+        runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
         dataStore.edit { it[BIOMETRIC_ENABLED] = false }
     }
 
