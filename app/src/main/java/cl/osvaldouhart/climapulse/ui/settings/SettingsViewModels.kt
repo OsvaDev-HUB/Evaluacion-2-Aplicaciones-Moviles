@@ -14,6 +14,7 @@ import cl.osvaldouhart.climapulse.data.AuthException
 import cl.osvaldouhart.climapulse.data.SessionRepository
 import cl.osvaldouhart.climapulse.data.ThemeMode
 import cl.osvaldouhart.climapulse.data.UserProfile
+import cl.osvaldouhart.climapulse.data.validateNewPassword
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,10 +24,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.crypto.Cipher
 
 class SettingsViewModel(private val session: SessionRepository) : ViewModel() {
     val profile: StateFlow<UserProfile?> = session.profile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val hasPassword = session.hasPassword.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val biometricEnabled = session.biometricEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val notificationsEnabled = session.notificationsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val autoRefreshEnabled = session.autoRefreshEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
@@ -52,9 +55,16 @@ class SettingsViewModel(private val session: SessionRepository) : ViewModel() {
         session.setAutoRefreshEnabled(enabled)
     }
 
-    fun setBiometric(enabled: Boolean) = viewModelScope.launch {
-        session.setBiometricEnabled(enabled)
-        _messages.send(if (enabled) "Desbloqueo con huella activado" else "Desbloqueo con huella desactivado")
+    fun biometricEnrollCipher() = session.biometricEnrollCipher()
+
+    fun completeBiometricEnroll(cipher: Cipher) = viewModelScope.launch {
+        val ok = session.completeBiometricEnroll(cipher)
+        _messages.send(if (ok) "Desbloqueo con huella activado" else "No pudimos activar la huella. Intenta de nuevo.")
+    }
+
+    fun disableBiometric() = viewModelScope.launch {
+        session.disableBiometric()
+        _messages.send("Desbloqueo con huella desactivado")
     }
 
     fun logout(onDone: () -> Unit) = viewModelScope.launch {
@@ -135,5 +145,124 @@ class EditProfileViewModel(
 
     companion object {
         val Factory = appViewModelFactory { c, handle -> EditProfileViewModel(c.sessionRepository, handle) }
+    }
+}
+
+// Las contraseñas no se guardan en SavedStateHandle: si Android cierra la app, se vuelven a escribir.
+class ChangePasswordViewModel(private val session: SessionRepository) : ViewModel() {
+    private var _current by mutableStateOf("")
+    var current: String
+        get() = _current
+        set(value) {
+            _current = value
+            currentError = null
+        }
+    private var _newPassword by mutableStateOf("")
+    var newPassword: String
+        get() = _newPassword
+        set(value) {
+            _newPassword = value
+            newError = null
+        }
+    private var _confirm by mutableStateOf("")
+    var confirm: String
+        get() = _confirm
+        set(value) {
+            _confirm = value
+            confirmError = null
+        }
+
+    var currentError by mutableStateOf<String?>(null)
+        private set
+    var newError by mutableStateOf<String?>(null)
+        private set
+    var confirmError by mutableStateOf<String?>(null)
+        private set
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+    var saving by mutableStateOf(false)
+        private set
+
+    private val _changed = Channel<Unit>(Channel.BUFFERED)
+    val changed = _changed.receiveAsFlow()
+
+    fun save() {
+        if (saving) return
+        currentError = if (current.isEmpty()) "Ingresa tu contraseña actual" else null
+        newError = validateNewPassword(newPassword)
+        confirmError = if (confirm != newPassword) "Las contraseñas no coinciden" else null
+        if (currentError != null || newError != null || confirmError != null) return
+        viewModelScope.launch {
+            saving = true
+            errorMessage = null
+            try {
+                session.changePassword(current, newPassword)
+                _changed.send(Unit)
+            } catch (e: AuthException) {
+                errorMessage = e.message
+            } finally {
+                saving = false
+            }
+        }
+    }
+
+    companion object {
+        val Factory = appViewModelFactory { c, _ -> ChangePasswordViewModel(c.sessionRepository) }
+    }
+}
+
+class DeleteAccountViewModel(private val session: SessionRepository) : ViewModel() {
+    val hasPassword = session.hasPassword.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private var _password by mutableStateOf("")
+    var password: String
+        get() = _password
+        set(value) {
+            _password = value
+            passwordError = null
+        }
+    var passwordError by mutableStateOf<String?>(null)
+        private set
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+    var deleting by mutableStateOf(false)
+        private set
+
+    private val _deleted = Channel<Unit>(Channel.BUFFERED)
+    val deleted = _deleted.receiveAsFlow()
+
+    fun deleteWithPassword() {
+        passwordError = if (password.isEmpty()) "Ingresa tu contraseña" else null
+        if (passwordError != null) return
+        delete { session.deleteAccount(password = password, googleIdToken = null) }
+    }
+
+    // getToken abre el selector de Google; null significa que el usuario lo cerró.
+    fun deleteWithGoogle(getToken: suspend () -> String?) {
+        delete {
+            val token = getToken() ?: return@delete
+            session.deleteAccount(password = null, googleIdToken = token)
+        }
+    }
+
+    private fun delete(block: suspend () -> Unit) {
+        if (deleting) return
+        viewModelScope.launch {
+            deleting = true
+            errorMessage = null
+            try {
+                block()
+                // Si el usuario cerró el selector de Google la sesión sigue abierta y no se navega.
+                if (!session.hasStoredSession()) _deleted.send(Unit)
+            } catch (e: AuthException) {
+                errorMessage = e.message
+            } finally {
+                deleting = false
+            }
+        }
+    }
+
+    companion object {
+        val Factory = appViewModelFactory { c, _ -> DeleteAccountViewModel(c.sessionRepository) }
     }
 }

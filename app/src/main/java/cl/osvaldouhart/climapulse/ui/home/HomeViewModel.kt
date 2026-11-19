@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.crypto.Cipher
 
 data class DashboardData(
     val reading: EnvironmentReading,
@@ -150,11 +151,17 @@ class HomeViewModel(
         viewModelScope.launch { session.setIntroDone() }
     }
 
-    fun enableBiometric() {
+    fun biometricEnrollCipher() = session.biometricEnrollCipher()
+
+    fun completeBiometricEnroll(cipher: Cipher) {
         viewModelScope.launch {
-            session.setBiometricEnabled(true)
-            _messages.send("Desbloqueo con huella activado")
+            val ok = session.completeBiometricEnroll(cipher)
+            _messages.send(if (ok) "Desbloqueo con huella activado" else "No pudimos activar la huella. Intenta de nuevo.")
         }
+    }
+
+    fun showMessage(message: String) {
+        viewModelScope.launch { _messages.send(message) }
     }
 
     fun saveMeasurement() {

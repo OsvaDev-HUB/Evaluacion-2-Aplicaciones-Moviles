@@ -1,5 +1,8 @@
 package cl.osvaldouhart.climapulse.data
 
+import android.util.Base64
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -8,12 +11,15 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
+import com.google.firebase.auth.AuthCredential
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -28,6 +34,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
+import javax.crypto.Cipher
 
 /** Tema de la app elegido en Perfil. SYSTEM sigue el ajuste del teléfono. */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -49,7 +56,9 @@ sealed interface StartDestination {
 class SessionRepository(
     private val dataStore: DataStore<Preferences>,
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val readings: ReadingsStore,
+    private val credentialManager: CredentialManager
 ) {
     init {
         // Los correos de verificación y de recuperación llegan en español.
@@ -67,7 +76,13 @@ class SessionRepository(
         if (user == null) flowOf(UserProfile("", "", "")) else userDocument(user)
     }
 
-    val biometricEnabled: Flow<Boolean> = dataStore.data.map { it[BIOMETRIC_ENABLED] ?: false }
+    // true si la cuenta tiene contraseña (las cuentas creadas solo con Google no tienen).
+    val hasPassword: Flow<Boolean> = currentUser.map { user ->
+        user?.providerData?.any { it.providerId == EmailAuthProvider.PROVIDER_ID } == true
+    }
+
+    // La huella solo cuenta como activa si además está guardado el dato cifrado con la llave biométrica.
+    val biometricEnabled: Flow<Boolean> = dataStore.data.map { it.biometricReady() }
     val notificationsEnabled: Flow<Boolean> = dataStore.data.map { it[NOTIFICATIONS_ENABLED] ?: false }
     val autoRefreshEnabled: Flow<Boolean> = dataStore.data.map { it[AUTO_REFRESH_ENABLED] ?: true }
 
@@ -102,7 +117,7 @@ class SessionRepository(
             withTimeoutOrNull(3_000) { runCatching { user.reload().await() } }
             if (auth.currentUser?.isEmailVerified != true) return StartDestination.VerifyEmail
         }
-        return if (dataStore.data.first()[BIOMETRIC_ENABLED] == true) {
+        return if (dataStore.data.first().biometricReady()) {
             StartDestination.Login(biometricUnlock = true)
         } else {
             StartDestination.Home
@@ -120,6 +135,24 @@ class SessionRepository(
         } catch (e: Exception) {
             throw e.toAuthException(invalidCredentials = "El correo o la contraseña no coinciden.")
         } ?: throw AuthException(GENERIC_MESSAGE)
+        return user.isEmailVerified
+    }
+
+    // Entra (o crea la cuenta la primera vez) con el token que entrega el selector de Google.
+    // Google ya verificó el correo, así que estas cuentas van directo al Inicio.
+    suspend fun signInWithGoogle(idToken: String): Boolean {
+        val result = try {
+            auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = "La cuenta de Google no es válida. Intenta con otra.")
+        }
+        val user = result.user ?: throw AuthException(GENERIC_MESSAGE)
+        if (result.additionalUserInfo?.isNewUser == true) {
+            // Cuenta nueva: se crea el documento con el nombre de Google y el teléfono vacío.
+            // Si la cuenta de Google no tiene nombre se usa lo que va antes de la @ del correo.
+            val name = user.displayName?.takeIf { it.isNotBlank() } ?: user.email.orEmpty().substringBefore("@")
+            saveUserDocument(user.uid, name.take(60), "")
+        }
         return user.isEmailVerified
     }
 
@@ -172,14 +205,109 @@ class SessionRepository(
         }
     }
 
-    /** Llamado tras una autenticación biométrica exitosa. */
-    fun unlockSession(): Boolean = auth.currentUser != null
+    // ---------- Desbloqueo con huella (CryptoObject) ----------
+    // Al activar la huella se cifra el uid con una llave del Keystore que solo se libera con una
+    // huella válida. Para desbloquear hay que descifrarlo, así que no basta con saltarse el diálogo.
+
+    // Cifrador para activar la huella. Devuelve null si el teléfono no permite crear la llave
+    // (por ejemplo, si no hay huellas registradas en Android).
+    fun biometricEnrollCipher(): Cipher? = runCatching { BiometricKey.encryptCipher() }.getOrNull()
+
+    // Se llama con el cifrador que devolvió el diálogo de huella ya autenticado.
+    suspend fun completeBiometricEnroll(cipher: Cipher): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        val encrypted = runCatching { cipher.doFinal(uid.toByteArray(Charsets.UTF_8)) }.getOrNull() ?: return false
+        dataStore.edit {
+            it[BIOMETRIC_SECRET] = Base64.encodeToString(encrypted, Base64.NO_WRAP)
+            it[BIOMETRIC_IV] = Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
+            it[BIOMETRIC_ENABLED] = true
+        }
+        return true
+    }
+
+    // Cifrador para desbloquear. Si es null la llave ya no sirve (se cambiaron las huellas en
+    // Android) y se desactiva el desbloqueo: hay que entrar con la contraseña y volver a activarlo.
+    suspend fun biometricUnlockCipher(): Cipher? {
+        val iv = dataStore.data.first()[BIOMETRIC_IV]?.let { Base64.decode(it, Base64.NO_WRAP) }
+        val cipher = iv?.let { BiometricKey.decryptCipher(it) }
+        if (cipher == null) disableBiometric()
+        return cipher
+    }
+
+    // true si la huella descifró el uid de la cuenta que tiene la sesión abierta.
+    suspend fun completeBiometricUnlock(cipher: Cipher): Boolean {
+        val user = auth.currentUser ?: return false
+        val secret = dataStore.data.first()[BIOMETRIC_SECRET] ?: return false
+        val uid = runCatching {
+            String(cipher.doFinal(Base64.decode(secret, Base64.NO_WRAP)), Charsets.UTF_8)
+        }.getOrNull()
+        return uid == user.uid
+    }
+
+    suspend fun disableBiometric() {
+        BiometricKey.deleteKey()
+        dataStore.edit {
+            it[BIOMETRIC_ENABLED] = false
+            it.remove(BIOMETRIC_SECRET)
+            it.remove(BIOMETRIC_IV)
+        }
+    }
 
     fun hasStoredSession(): Boolean = auth.currentUser != null
 
     suspend fun logout() {
         auth.signOut()
-        dataStore.edit { it[BIOMETRIC_ENABLED] = false }
+        // Así la próxima vez el selector de Google vuelve a preguntar qué cuenta usar.
+        runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
+        disableBiometric()
+    }
+
+    // Para cambiar la contraseña Firebase pide haber ingresado hace poco, por eso se confirma la actual primero.
+    suspend fun changePassword(currentPassword: String, newPassword: String) {
+        validateNewPassword(newPassword)?.let { throw AuthException(it) }
+        if (newPassword == currentPassword) throw AuthException("La nueva contraseña debe ser distinta a la actual.")
+        val user = auth.currentUser ?: throw AuthException(SESSION_EXPIRED)
+        reauthenticate(user, EmailAuthProvider.getCredential(user.email.orEmpty(), currentPassword))
+        try {
+            user.updatePassword(newPassword).await()
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = GENERIC_MESSAGE)
+        }
+    }
+
+    // Borra la cuenta y sus datos. Se confirma la identidad con la contraseña o con Google
+    // (según cómo se creó la cuenta) para que nadie la borre con el teléfono desbloqueado.
+    suspend fun deleteAccount(password: String?, googleIdToken: String?) {
+        val user = auth.currentUser ?: throw AuthException(SESSION_EXPIRED)
+        val credential = when {
+            password != null -> EmailAuthProvider.getCredential(user.email.orEmpty(), password)
+            googleIdToken != null -> GoogleAuthProvider.getCredential(googleIdToken, null)
+            else -> throw AuthException(GENERIC_MESSAGE)
+        }
+        reauthenticate(user, credential)
+        val uid = user.uid
+        try {
+            // Primero los datos en Firestore: una vez borrada la cuenta, las reglas ya no dejarían hacerlo.
+            readings.deleteAll(uid)
+            firestore.collection(USERS).document(uid).delete().await()
+            user.delete().await()
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = GENERIC_MESSAGE)
+        }
+        dataStore.edit { it.remove(introKey(uid)) }
+        disableBiometric()
+        runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
+    }
+
+    private suspend fun reauthenticate(user: FirebaseUser, credential: AuthCredential) {
+        try {
+            user.reauthenticate(credential).await()
+        } catch (e: FirebaseAuthInvalidUserException) {
+            // Pasa cuando se elige en Google una cuenta distinta a la que tiene la sesión abierta.
+            throw AuthException("Esa no es la cuenta con la que ingresaste. Elige la misma cuenta.")
+        } catch (e: Exception) {
+            throw e.toAuthException(invalidCredentials = "La contraseña actual no es correcta.")
+        }
     }
 
     /** Cambia nombre y teléfono. El correo se cambiará en la sección de seguridad de la cuenta. */
@@ -193,7 +321,6 @@ class SessionRepository(
         saveUserDocument(user.uid, name, phone)
     }
 
-    suspend fun setBiometricEnabled(enabled: Boolean) = dataStore.edit { it[BIOMETRIC_ENABLED] = enabled }
     suspend fun setNotificationsEnabled(enabled: Boolean) = dataStore.edit { it[NOTIFICATIONS_ENABLED] = enabled }
     suspend fun setAutoRefreshEnabled(enabled: Boolean) = dataStore.edit { it[AUTO_REFRESH_ENABLED] = enabled }
     suspend fun setIntroDone() {
@@ -255,6 +382,11 @@ class SessionRepository(
 
         val WELCOME_HIDDEN = booleanPreferencesKey("welcome_hidden")
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
+        val BIOMETRIC_SECRET = stringPreferencesKey("biometric_secret")
+        val BIOMETRIC_IV = stringPreferencesKey("biometric_iv")
+
+        fun Preferences.biometricReady() =
+            this[BIOMETRIC_ENABLED] == true && this[BIOMETRIC_SECRET] != null && this[BIOMETRIC_IV] != null
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val AUTO_REFRESH_ENABLED = booleanPreferencesKey("auto_refresh_enabled")
         val THEME_MODE = stringPreferencesKey("theme_mode")

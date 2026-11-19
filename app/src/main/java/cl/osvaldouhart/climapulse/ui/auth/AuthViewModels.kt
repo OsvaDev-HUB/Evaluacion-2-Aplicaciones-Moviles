@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.compose.SavedStateHandleSaveableApi
 import androidx.lifecycle.viewmodel.compose.saveable
 import androidx.navigation.toRoute
 import cl.osvaldouhart.climapulse.data.AuthException
+import cl.osvaldouhart.climapulse.data.ConnectivityObserver
 import cl.osvaldouhart.climapulse.data.SessionRepository
 import cl.osvaldouhart.climapulse.data.validateNewPassword
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
@@ -22,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import javax.crypto.Cipher
 
 private const val GENERIC_ERROR = "No pudimos completar la acción. Revisa tu conexión e intenta de nuevo."
 
@@ -39,6 +41,7 @@ internal fun validatePassword(password: String): String? = validateNewPassword(p
  */
 class LoginViewModel(
     private val session: SessionRepository,
+    private val connectivity: ConnectivityObserver,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private var _email by savedStateHandle.saveable { mutableStateOf("") }
@@ -83,12 +86,39 @@ class LoginViewModel(
         authenticate { session.login(email.trim(), password) }
     }
 
-    fun onBiometricSuccess() {
+    // getToken abre el selector de Google; si devuelve null el usuario lo cerró y no se muestra error.
+    fun signInWithGoogle(getToken: suspend () -> String?) {
+        // Sin internet Google cierra el selector como si el usuario lo hubiera cancelado, por eso se avisa antes.
+        if (!connectivity.isOnline()) {
+            errorMessage = "No hay conexión a internet. Revisa tu conexión e intenta de nuevo."
+            return
+        }
+        authenticate {
+            val token = getToken() ?: return@authenticate null
+            session.signInWithGoogle(token)
+        }
+    }
+
+    // Prepara el cifrador para el diálogo de huella. Si las huellas de Android cambiaron,
+    // la llave ya no sirve y se pide entrar con la contraseña.
+    fun prepareBiometric(onReady: (Cipher) -> Unit) {
         viewModelScope.launch {
-            if (session.unlockSession()) {
+            val cipher = session.biometricUnlockCipher()
+            if (cipher != null) {
+                onReady(cipher)
+            } else {
+                canUseBiometric = false
+                errorMessage = "Las huellas del teléfono cambiaron. Ingresa con tu contraseña y vuelve a activar la huella en Perfil."
+            }
+        }
+    }
+
+    fun onBiometricSuccess(cipher: Cipher) {
+        viewModelScope.launch {
+            if (session.completeBiometricUnlock(cipher)) {
                 _loggedIn.send(true)
             } else {
-                errorMessage = "Tu sesión expiró. Ingresa con tu correo y contraseña."
+                errorMessage = "No pudimos verificar tu identidad. Ingresa con tu correo y contraseña."
             }
         }
     }
@@ -97,13 +127,13 @@ class LoginViewModel(
         errorMessage = message
     }
 
-    private fun authenticate(block: suspend () -> Boolean) {
+    private fun authenticate(block: suspend () -> Boolean?) {
         if (loading) return
         viewModelScope.launch {
             loading = true
             errorMessage = null
             try {
-                _loggedIn.send(block())
+                block()?.let { _loggedIn.send(it) }
             } catch (e: AuthException) {
                 errorMessage = e.message
             } catch (e: Exception) {
@@ -115,7 +145,7 @@ class LoginViewModel(
     }
 
     companion object {
-        val Factory = appViewModelFactory { c, handle -> LoginViewModel(c.sessionRepository, handle) }
+        val Factory = appViewModelFactory { c, handle -> LoginViewModel(c.sessionRepository, c.connectivity, handle) }
     }
 }
 

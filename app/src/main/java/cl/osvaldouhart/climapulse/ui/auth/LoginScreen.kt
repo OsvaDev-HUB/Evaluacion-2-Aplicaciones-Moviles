@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cl.osvaldouhart.climapulse.R
 import cl.osvaldouhart.climapulse.ui.components.ClimaLogo
 import cl.osvaldouhart.climapulse.ui.components.ClimaTextField
 import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
@@ -54,13 +56,17 @@ fun LoginScreen(
 
     fun launchBiometric() {
         val activity = context.findFragmentActivity() ?: return
-        BiometricAuth.authenticate(
-            activity = activity,
-            title = "Desbloquear ClimaPulse",
-            subtitle = "Usa tu huella o rostro para continuar",
-            onSuccess = viewModel::onBiometricSuccess,
-            onError = viewModel::onBiometricError
-        )
+        viewModel.prepareBiometric { cipher ->
+            BiometricAuth.authenticate(
+                activity = activity,
+                cipher = cipher,
+                title = "Desbloquear ClimaPulse",
+                subtitle = "Usa tu huella para continuar",
+                negativeText = "Usar contraseña",
+                onSuccess = viewModel::onBiometricSuccess,
+                onError = viewModel::onBiometricError
+            )
+        }
     }
 
     LaunchedEffect(viewModel) { viewModel.loggedIn.collect { verified -> onLoggedIn(verified) } }
@@ -135,6 +141,15 @@ fun LoginScreen(
                 loading = viewModel.loading,
                 enabled = !viewModel.loading
             )
+            SecondaryButton(
+                text = "Continuar con Google",
+                painter = painterResource(R.drawable.ic_google),
+                onClick = {
+                    focusManager.clearFocus()
+                    viewModel.signInWithGoogle { requestGoogleIdToken(context) }
+                },
+                enabled = !viewModel.loading
+            )
             if (showBiometric) {
                 SecondaryButton(
                     text = "Ingresar con huella",
@@ -144,6 +159,13 @@ fun LoginScreen(
                 )
             }
         }
+
+        Text(
+            "Al continuar con Google aceptas los términos de servicio de ClimaPulse.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),

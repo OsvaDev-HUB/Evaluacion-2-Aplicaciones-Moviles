@@ -1,0 +1,14 @@
+# Reglas de R8 propias de ClimaPulse. Firebase, Compose, Navigation y kotlinx.serialization
+# ya traen las suyas, aqui solo va lo que falta.
+
+# Credential Manager busca por reflexion la implementacion de Google Play Services.
+-if class androidx.credentials.CredentialManager
+-keep class androidx.credentials.playservices.** { *; }
+
+# Conserva numero de linea en los errores para poder leerlos con el archivo mapping.txt.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# Navigation busca por nombre los enum que van como argumento en las rutas tipadas
+# (MetricDetailRoute recibe un Metric). Si R8 les cambia el nombre, la app se cae al abrir.
+-keep enum cl.osvaldouhart.climapulse.data.Metric { *; }

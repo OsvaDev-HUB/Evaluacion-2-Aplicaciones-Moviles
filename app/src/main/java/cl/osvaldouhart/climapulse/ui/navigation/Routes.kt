@@ -15,6 +15,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class MetricDetailRoute(val metric: Metric)
 @Serializable data object EditProfileRoute
 @Serializable data object TermsRoute
+@Serializable data object ChangePasswordRoute
+@Serializable data object DeleteAccountRoute
 
 // Destinos de nivel superior dentro del Home (barra inferior).
 @Serializable data object DashboardTab

@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import cl.osvaldouhart.climapulse.ui.theme.BrandTeal
@@ -53,6 +54,7 @@ import cl.osvaldouhart.climapulse.ui.permissions.PermissionsSheet
 import cl.osvaldouhart.climapulse.ui.components.AppSnackbarHost
 import cl.osvaldouhart.climapulse.ui.components.CollectMessages
 import cl.osvaldouhart.climapulse.ui.components.OfflineBanner
+import cl.osvaldouhart.climapulse.ui.auth.enrollBiometric
 import cl.osvaldouhart.climapulse.ui.history.HistoryScreen
 import cl.osvaldouhart.climapulse.ui.navigation.DashboardTab
 import cl.osvaldouhart.climapulse.ui.navigation.HistoryTab
@@ -87,11 +89,14 @@ private val tabs = listOf(
 fun HomeScaffold(
     onOpenMetric: (Metric) -> Unit,
     onEditProfile: () -> Unit,
+    onChangePassword: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onOpenTerms: () -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
 ) {
     val tabNavController = rememberNavController()
+    val context = LocalContext.current
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val linkState by viewModel.linkState.collectAsStateWithLifecycle()
     val introDone by viewModel.introDone.collectAsStateWithLifecycle()
@@ -121,7 +126,13 @@ fun HomeScaffold(
         PermissionsSheet(
             onNotificationsResult = viewModel::onNotificationPermission,
             biometricEnabled = biometricEnabled,
-            onEnableBiometric = viewModel::enableBiometric,
+            onEnableBiometric = {
+                context.enrollBiometric(
+                    cipher = viewModel.biometricEnrollCipher(),
+                    onSuccess = viewModel::completeBiometricEnroll,
+                    onError = viewModel::showMessage
+                )
+            },
             onDone = { introPhase = IntroPhase.Tour }
         )
     }
@@ -162,6 +173,8 @@ fun HomeScaffold(
                                 linkState = linkState,
                                 onRefresh = { viewModel.refresh() },
                                 onEditProfile = onEditProfile,
+                                onChangePassword = onChangePassword,
+                                onDeleteAccount = onDeleteAccount,
                                 onOpenTerms = onOpenTerms,
                                 onLoggedOut = onLoggedOut,
                                 onReplayTour = {

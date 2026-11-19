@@ -108,7 +108,7 @@ private val pages = listOf(
     },
     OnboardingPage(
         title = "Sensor real, por WiFi",
-        body = "Conecta el sensor ESP8266 con un PIN de 6 dígitos. Las lecturas viajan cifradas y quedan guardadas en el teléfono.",
+        body = "Conecta el sensor ESP8266 con un PIN de 6 dígitos. Las lecturas viajan cifradas y quedan guardadas en tu cuenta.",
         lobes = 12,
         depth = 0.05f
     ) {
