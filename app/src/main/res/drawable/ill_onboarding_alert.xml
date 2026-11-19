@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado desde docs/ilustraciones/claro/ill_onboarding_alert.svg con convertir.py -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="160"
+    android:viewportHeight="160">
+    <path
+        android:pathData="M18,80a62,62 0,1 1,124,0a62,62 0,1 1,-124,0z"
+        android:fillColor="#FFD166"
+        android:fillAlpha="0.1" />
+    <path
+        android:pathData="M46,44h0a12,12 0,0 1,12,12v41a12,12 0,0 1,-12,12h0a12,12 0,0 1,-12,-12v-41a12,12 0,0 1,12,-12z"
+        android:fillColor="#263345" />
+    <path
+        android:pathData="M27,110a19,19 0,1 1,38,0a19,19 0,1 1,-38,0z"
+        android:fillColor="#263345" />
+    <path
+        android:pathData="M46,54h0a4,4 0,0 1,4,4v43a4,4 0,0 1,-4,4h0a4,4 0,0 1,-4,-4v-43a4,4 0,0 1,4,-4z"
+        android:fillColor="#3A4A5E" />
+    <group android:name="mercurio" android:pivotX="46" android:pivotY="104">
+        <path
+            android:pathData="M46,77h0a4,4 0,0 1,4,4v19a4,4 0,0 1,-4,4h0a4,4 0,0 1,-4,-4v-19a4,4 0,0 1,4,-4z"
+            android:fillColor="#FFD166" />
+    </group>
+    <path
+        android:pathData="M36,110a10,10 0,1 1,20,0a10,10 0,1 1,-20,0z"
+        android:fillColor="#FFD166" />
+    <path
+        android:pathData="M40,107a3,3 0,1 1,6,0a3,3 0,1 1,-6,0z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M87,34h29a12,12 0,0 1,12,12v71a12,12 0,0 1,-12,12h-29a12,12 0,0 1,-12,-12v-71a12,12 0,0 1,12,-12z"
+        android:fillColor="#263345" />
+    <path
+        android:pathData="M88,43h27a7,7 0,0 1,7,7v59a7,7 0,0 1,-7,7h-27a7,7 0,0 1,-7,-7v-59a7,7 0,0 1,7,-7z"
+        android:fillColor="#3A4A5E" />
+    <path
+        android:pathData="M94.5,121h14a1.5,1.5 0,0 1,1.5,1.5v0a1.5,1.5 0,0 1,-1.5,1.5h-14a1.5,1.5 0,0 1,-1.5,-1.5v0a1.5,1.5 0,0 1,1.5,-1.5z"
+        android:fillColor="#FFFFFF" />
+    <group android:name="aviso" android:pivotX="101.5" android:pivotY="83.5">
+        <path
+            android:pathData="M95,68h13a9,9 0,0 1,9,9v13a9,9 0,0 1,-9,9h-13a9,9 0,0 1,-9,-9v-13a9,9 0,0 1,9,-9z"
+            android:fillColor="#FFD166" />
+        <path
+            android:pathData="M101.5,74h0a2.5,2.5 0,0 1,2.5,2.5v8a2.5,2.5 0,0 1,-2.5,2.5h0a2.5,2.5 0,0 1,-2.5,-2.5v-8a2.5,2.5 0,0 1,2.5,-2.5z"
+            android:fillColor="#263345" />
+        <path
+            android:pathData="M98.7,92a2.8,2.8 0,1 1,5.6,0a2.8,2.8 0,1 1,-5.6,0z"
+            android:fillColor="#263345" />
+    </group>
+    <path
+        android:pathData="M106,37a14,14 0,1 1,28,0a14,14 0,1 1,-28,0z"
+        android:fillColor="#2BC1AD" />
+    <path
+        android:pathData="M113 37 L118 42 L127 32"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

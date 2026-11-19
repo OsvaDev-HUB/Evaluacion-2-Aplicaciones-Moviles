@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado desde docs/ilustraciones/oscuro/ill_delete_account.svg con convertir.py -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="160"
+    android:viewportHeight="160">
+    <path
+        android:pathData="M18,80a62,62 0,1 1,124,0a62,62 0,1 1,-124,0z"
+        android:fillColor="#FFD166"
+        android:fillAlpha="0.1" />
+    <path
+        android:pathData="M45,28h69a15,15 0,0 1,15,15v78a15,15 0,0 1,-15,15h-69a15,15 0,0 1,-15,-15v-78a15,15 0,0 1,15,-15z"
+        android:fillColor="#33445A" />
+    <path
+        android:pathData="M51,39h57a10,10 0,0 1,10,10v66a10,10 0,0 1,-10,10h-57a10,10 0,0 1,-10,-10v-66a10,10 0,0 1,10,-10z"
+        android:fillColor="#506379" />
+    <path
+        android:pathData="M60,69a19,19 0,1 1,38,0a19,19 0,1 1,-38,0z"
+        android:fillColor="#33445A" />
+    <path
+        android:pathData="M51 110 Q53 88 79 88 Q105 88 107 110 V113 H51 Z"
+        android:fillColor="#33445A" />
+    <path
+        android:pathData="M112 88 Q115 84 119 88 L143 129 Q146 135 138 135 H92 Q84 135 88 128 Z"
+        android:fillColor="#FFD166" />
+    <path
+        android:pathData="M115,105h0a2.5,2.5 0,0 1,2.5,2.5v10a2.5,2.5 0,0 1,-2.5,2.5h0a2.5,2.5 0,0 1,-2.5,-2.5v-10a2.5,2.5 0,0 1,2.5,-2.5z"
+        android:fillColor="#33445A" />
+    <path
+        android:pathData="M112,126a3,3 0,1 1,6,0a3,3 0,1 1,-6,0z"
+        android:fillColor="#33445A" />
+</vector>

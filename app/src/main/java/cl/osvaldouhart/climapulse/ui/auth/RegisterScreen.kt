@@ -28,6 +28,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.osvaldouhart.climapulse.ui.components.BackTopBar
@@ -121,6 +123,7 @@ fun RegisterScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Checkbox(checked = viewModel.acceptedTerms, onCheckedChange = null)
+                Spacer(Modifier.width(8.dp))
                 Text(
                     "Acepto los términos de servicio",
                     style = MaterialTheme.typography.bodyMedium,

@@ -35,6 +35,7 @@ import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
 import cl.osvaldouhart.climapulse.ui.components.ScreenTitle
 import cl.osvaldouhart.climapulse.ui.components.StatusPill
 import cl.osvaldouhart.climapulse.ui.components.formatDate
+import cl.osvaldouhart.climapulse.ui.components.Illustration
 import cl.osvaldouhart.climapulse.ui.theme.ClimaShapes
 import cl.osvaldouhart.climapulse.ui.theme.Dimens
 import cl.osvaldouhart.climapulse.ui.theme.Teal
@@ -47,7 +48,13 @@ fun ReportsScreen(viewModel: HomeViewModel) {
 
     when (val current = state) {
         UiState.Loading -> DashboardSkeleton(PaddingValues())
-        is UiState.Error -> ErrorState(current.message, onRetry = viewModel::retry, modifier = Modifier.fillMaxSize())
+        is UiState.Error -> ErrorState(
+            message = current.message,
+            onRetry = viewModel::retry,
+            modifier = Modifier.fillMaxSize(),
+            title = "Aún no hay datos para el reporte",
+            illustration = Illustration.REPORTS_EMPTY
+        )
         UiState.Empty -> Unit
         is UiState.Success -> ReportsContent(
             data = current.data,

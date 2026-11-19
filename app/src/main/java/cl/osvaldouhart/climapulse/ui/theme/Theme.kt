@@ -7,6 +7,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -124,10 +126,16 @@ private val ClimaPulseShapes = Shapes(
 
 @Composable
 fun ClimaPulseTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = ClimaPulseTypography,
-        shapes = ClimaPulseShapes,
-        content = content
-    )
+    CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            typography = ClimaPulseTypography,
+            shapes = ClimaPulseShapes,
+            content = content
+        )
+    }
 }
+
+// true si la app se está mostrando en tema oscuro. Sigue lo que eligió el usuario en Perfil,
+// que puede ser distinto al tema del sistema (por eso no sirve isSystemInDarkTheme()).
+val LocalDarkTheme = staticCompositionLocalOf { false }

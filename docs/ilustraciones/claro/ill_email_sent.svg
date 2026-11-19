@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <circle cx="80" cy="80" r="62" fill="#2BC1AD" fill-opacity="0.10"/>
+  <!-- Motion trails -->
+  <g id="estela" data-pivot="45,79">
+  <rect x="19" y="60" width="26" height="6" rx="3" fill="#3A4A5E"/>
+  <rect x="11" y="76" width="31" height="6" rx="3" fill="#3A4A5E"/>
+  <rect x="23" y="92" width="20" height="6" rx="3" fill="#3A4A5E"/>
+  </g>
+  <g id="sobre" data-pivot="84,85">
+  <!-- Envelope -->
+  <rect x="39" y="52" width="91" height="66" rx="11" fill="#263345"/>
+  <path d="M44 59 L79 88 Q84 92 89 88 L125 59" fill="none" stroke="#3A4A5E" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M43 113 L69 91" fill="none" stroke="#3A4A5E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M126 113 L100 91" fill="none" stroke="#3A4A5E" stroke-width="5" stroke-linecap="round"/>
+  <!-- Sent confirmation -->
+  <g id="check" data-pivot="123,111">
+  <circle cx="123" cy="111" r="24" fill="#2BC1AD"/>
+  <path d="M111 111 L120 119 L136 103" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  </g>
+</svg>

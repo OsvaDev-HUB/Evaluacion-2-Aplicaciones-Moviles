@@ -9,7 +9,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,15 +39,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import cl.osvaldouhart.climapulse.R
 import cl.osvaldouhart.climapulse.ui.theme.ClimaShapes
 import cl.osvaldouhart.climapulse.ui.theme.Dimens
 
@@ -126,7 +122,7 @@ fun EmptyState(
     actionLabel: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
-    illustration: Painter = painterResource(R.drawable.ill_empty_history),
+    illustration: Illustration = Illustration.EMPTY_HISTORY,
     loading: Boolean = false
 ) {
     StateMessage(illustration, title, message, modifier) {
@@ -140,16 +136,17 @@ fun ErrorState(
     message: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Algo no salió como esperábamos"
+    title: String = "Algo no salió como esperábamos",
+    illustration: Illustration = Illustration.OFFLINE
 ) {
-    StateMessage(painterResource(R.drawable.ill_offline), title, message, modifier) {
+    StateMessage(illustration, title, message, modifier) {
         PrimaryButton(text = "Reintentar", onClick = onRetry, icon = Icons.Rounded.Refresh)
     }
 }
 
 @Composable
 private fun StateMessage(
-    illustration: Painter,
+    illustration: Illustration,
     title: String,
     message: String,
     modifier: Modifier,
@@ -162,7 +159,7 @@ private fun StateMessage(
             .padding(horizontal = 32.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image(illustration, contentDescription = null, modifier = Modifier.size(170.dp))
+        IllustrationImage(illustration, size = 170.dp)
         Spacer(Modifier.height(24.dp))
         Text(
             title,

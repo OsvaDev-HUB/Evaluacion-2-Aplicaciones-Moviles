@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado con docs/ilustraciones/convertir.py (tabla ANIMACIONES). -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ill_sensor_search_dark">
+    <target android:name="arco1">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="strokeAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350" android:startOffset="0"
+                        android:valueFrom="1" android:valueTo="0.25" />
+                    <objectAnimator android:propertyName="strokeAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350"
+                        android:valueFrom="0.25" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="arco2">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="strokeAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350" android:startOffset="200"
+                        android:valueFrom="1" android:valueTo="0.25" />
+                    <objectAnimator android:propertyName="strokeAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350"
+                        android:valueFrom="0.25" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="arco3">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="strokeAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350" android:startOffset="400"
+                        android:valueFrom="1" android:valueTo="0.25" />
+                    <objectAnimator android:propertyName="strokeAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350"
+                        android:valueFrom="0.25" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="led">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="fillAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="300" android:startOffset="500"
+                        android:valueFrom="1" android:valueTo="0.3" />
+                    <objectAnimator android:propertyName="fillAlpha" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="300"
+                        android:valueFrom="0.3" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>
