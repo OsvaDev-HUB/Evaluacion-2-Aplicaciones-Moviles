@@ -27,3 +27,8 @@ firebase-debug.log
 
 # Capturas y registros del navegador de pruebas
 .playwright-mcp/
+
+# Clave de firma del build release
+keystore.properties
+*.jks
+*.keystore
