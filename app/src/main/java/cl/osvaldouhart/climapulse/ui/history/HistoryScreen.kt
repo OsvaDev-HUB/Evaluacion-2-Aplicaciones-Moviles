@@ -116,7 +116,7 @@ fun HistoryScreen(viewModel: HistoryViewModel = viewModel(factory = HistoryViewM
             Column(modifier = Modifier.weight(1f)) {
                 Text("Historial", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
                 Text(
-                    "Mediciones guardadas en este teléfono",
+                    "Mediciones guardadas en tu cuenta",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

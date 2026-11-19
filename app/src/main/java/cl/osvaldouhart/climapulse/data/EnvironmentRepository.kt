@@ -4,30 +4,24 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 
 /**
  * Fuente única de lecturas: todas vienen del nodo sensor ESP8266 por el enlace WiFi.
- * El historial se guarda en SQLite y la última lectura queda en caché para verla sin conexión.
+ * El historial se guarda en Firestore y la última lectura queda en caché para verla sin conexión.
  */
 class EnvironmentRepository(
     private val dataStore: DataStore<Preferences>,
-    private val database: AppDatabase,
+    private val readings: ReadingsStore,
     private val link: WifiLink
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    // Se vuelve a consultar SQLite cada vez que cambia la tabla de lecturas.
-    val history: Flow<List<EnvironmentReading>> = database.readingsVersion
-        .map { database.readings(MAX_HISTORY) }
-        .flowOn(Dispatchers.IO)
+    val history: Flow<List<EnvironmentReading>> = readings.history
 
     /** Lecturas que llegan en tiempo real desde el sensor. */
     val liveReadings: Flow<EnvironmentReading> = link.readings
@@ -54,21 +48,15 @@ class EnvironmentRepository(
             runCatching { json.decodeFromString<EnvironmentReading>(it) }.getOrNull()
         }
 
-    suspend fun saveToHistory(reading: EnvironmentReading) = withContext(Dispatchers.IO) {
-        database.insertReading(reading, MAX_HISTORY)
-    }
+    fun saveToHistory(reading: EnvironmentReading) = readings.add(reading)
 
-    suspend fun clearHistory() = withContext(Dispatchers.IO) {
-        database.deleteReadings()
-    }
+    suspend fun clearHistory() = readings.clear()
 
     suspend fun saveIdealRange(metric: Metric, range: IdealRange) {
         dataStore.edit { it[rangeKey(metric)] = json.encodeToString(range) }
     }
 
     companion object {
-        const val MAX_HISTORY = 200
-
         private val LAST_READING = stringPreferencesKey("last_reading")
         private fun rangeKey(metric: Metric) = stringPreferencesKey("range_${metric.name.lowercase()}")
     }

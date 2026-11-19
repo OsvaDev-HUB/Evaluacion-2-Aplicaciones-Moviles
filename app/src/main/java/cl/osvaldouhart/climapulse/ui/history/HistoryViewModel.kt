@@ -52,8 +52,12 @@ class HistoryViewModel(private val environment: EnvironmentRepository) : ViewMod
 
     fun clearHistory() {
         viewModelScope.launch {
-            environment.clearHistory()
-            _messages.send("Historial borrado")
+            try {
+                environment.clearHistory()
+                _messages.send("Historial borrado")
+            } catch (e: Exception) {
+                _messages.send(e.toUserMessage())
+            }
         }
     }
 

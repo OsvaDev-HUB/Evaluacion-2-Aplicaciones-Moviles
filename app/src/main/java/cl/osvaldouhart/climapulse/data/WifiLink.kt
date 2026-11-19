@@ -59,7 +59,7 @@ data class LinkMessage(
  */
 class WifiLink(
     context: Context,
-    private val database: AppDatabase
+    private val readingsStore: ReadingsStore
 ) {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -168,10 +168,10 @@ class WifiLink(
         val reading = received.copy(timestampMillis = System.currentTimeMillis())
         lastReading = reading
         _readings.tryEmit(reading)
-        // Se guarda en SQLite una lectura cada 15 segundos para no llenar la base.
+        // Se guarda en el historial una lectura cada 15 segundos para no llenar la base.
         if (reading.timestampMillis - lastSavedMillis >= AUTO_SAVE_MILLIS) {
             lastSavedMillis = reading.timestampMillis
-            database.insertReading(reading, EnvironmentRepository.MAX_HISTORY)
+            readingsStore.add(reading)
         }
     }
 

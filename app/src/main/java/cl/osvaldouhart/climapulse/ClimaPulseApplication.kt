@@ -3,9 +3,9 @@ package cl.osvaldouhart.climapulse
 import android.app.Application
 import androidx.credentials.CredentialManager
 import cl.osvaldouhart.climapulse.data.AlertNotifier
-import cl.osvaldouhart.climapulse.data.AppDatabase
 import cl.osvaldouhart.climapulse.data.ConnectivityObserver
 import cl.osvaldouhart.climapulse.data.EnvironmentRepository
+import cl.osvaldouhart.climapulse.data.ReadingsStore
 import cl.osvaldouhart.climapulse.data.SessionRepository
 import cl.osvaldouhart.climapulse.data.WifiLink
 import cl.osvaldouhart.climapulse.data.appDataStore
@@ -18,16 +18,24 @@ class ClimaPulseApplication : Application() {
 
 /** Contenedor de dependencias manual compartido por los ViewModels. */
 class AppContainer(application: Application) {
+    init {
+        // El historial ahora vive en Firestore: se borra la base SQLite que usaba la versión anterior.
+        application.deleteDatabase("climapulse.db")
+    }
+
     val connectivity = ConnectivityObserver(application)
-    val database = AppDatabase(application)
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+    val readingsStore = ReadingsStore(auth, firestore)
     val alertNotifier = AlertNotifier(application)
     // El enlace vive en el contenedor para que la conexión siga activa al cambiar de pantalla.
-    val wifiLink = WifiLink(application, database)
+    val wifiLink = WifiLink(application, readingsStore)
     val sessionRepository = SessionRepository(
         application.appDataStore,
-        FirebaseAuth.getInstance(),
-        FirebaseFirestore.getInstance(),
+        auth,
+        firestore,
+        readingsStore,
         CredentialManager.create(application)
     )
-    val environmentRepository = EnvironmentRepository(application.appDataStore, database, wifiLink)
+    val environmentRepository = EnvironmentRepository(application.appDataStore, readingsStore, wifiLink)
 }

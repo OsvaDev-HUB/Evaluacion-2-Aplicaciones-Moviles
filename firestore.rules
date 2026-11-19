@@ -18,6 +18,24 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, delete: if esDueno(userId);
       allow create, update: if esDueno(userId) && perfilValido(request.resource.data);
+
+      // Historial de lecturas del sensor. Una lectura no se edita: solo se crea o se borra.
+      match /lecturas/{lecturaId} {
+        allow read, delete: if esDueno(userId);
+        allow create: if esDueno(userId) && lecturaValida(request.resource.data);
+      }
+    }
+
+    // Valores dentro de lo que pueden medir el DHT11 y el LDR (con margen por la calibración).
+    // La fecha no puede venir del futuro (se aceptan 5 minutos por diferencias de reloj).
+    function lecturaValida(datos) {
+      return datos.keys().hasOnly(['temperatura', 'humedad', 'luz', 'fecha', 'origen'])
+        && datos.keys().hasAll(['temperatura', 'humedad', 'luz', 'fecha', 'origen'])
+        && datos.temperatura is number && datos.temperatura >= -40 && datos.temperatura <= 85
+        && datos.humedad is number && datos.humedad >= 0 && datos.humedad <= 100
+        && datos.luz is number && datos.luz >= 0 && datos.luz <= 100000
+        && datos.fecha is int && datos.fecha <= request.time.toMillis() + 300000
+        && datos.origen is string && datos.origen.size() > 0 && datos.origen.size() <= 40;
     }
 
     // Todo lo demás queda cerrado.

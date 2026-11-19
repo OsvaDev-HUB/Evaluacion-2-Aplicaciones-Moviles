@@ -55,6 +55,7 @@ class SessionRepository(
     private val dataStore: DataStore<Preferences>,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val readings: ReadingsStore,
     private val credentialManager: CredentialManager
 ) {
     init {
@@ -239,6 +240,7 @@ class SessionRepository(
         val uid = user.uid
         try {
             // Primero los datos en Firestore: una vez borrada la cuenta, las reglas ya no dejarían hacerlo.
+            readings.deleteAll(uid)
             firestore.collection(USERS).document(uid).delete().await()
             user.delete().await()
         } catch (e: Exception) {
