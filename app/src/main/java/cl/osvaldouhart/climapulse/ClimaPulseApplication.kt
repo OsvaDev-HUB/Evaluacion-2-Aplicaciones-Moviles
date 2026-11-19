@@ -9,11 +9,19 @@ import cl.osvaldouhart.climapulse.data.ReadingsStore
 import cl.osvaldouhart.climapulse.data.SessionRepository
 import cl.osvaldouhart.climapulse.data.WifiLink
 import cl.osvaldouhart.climapulse.data.appDataStore
+import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
 class ClimaPulseApplication : Application() {
     val container by lazy { AppContainer(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        // App Check: Firebase solo responde a esta app original, no a copias modificadas ni a scripts.
+        // El proveedor cambia según el tipo de build (ver appCheckProviderFactory en debug y release).
+        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(appCheckProviderFactory())
+    }
 }
 
 /** Contenedor de dependencias manual compartido por los ViewModels. */
