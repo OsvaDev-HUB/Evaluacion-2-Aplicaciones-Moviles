@@ -1,7 +1,7 @@
 package cl.osvaldouhart.climapulse.data
 
-import android.util.Base64
 import java.security.SecureRandom
+import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -29,12 +29,13 @@ class LinkCrypto(pin: String) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(128, iv))
         val encrypted = cipher.doFinal(text.toByteArray(Charsets.UTF_8))
-        return Base64.encodeToString(iv + encrypted, Base64.NO_WRAP)
+        return Base64.getEncoder().encodeToString(iv + encrypted)
     }
 
     /** Lanza una excepción si el PIN no coincide o el mensaje fue modificado. */
     fun decrypt(line: String): String {
-        val bytes = Base64.decode(line, Base64.NO_WRAP)
+        // El decodificador MIME ignora saltos de línea o espacios que puedan venir del ESP8266.
+        val bytes = Base64.getMimeDecoder().decode(line)
         val iv = bytes.copyOfRange(0, 12)
         val encrypted = bytes.copyOfRange(12, bytes.size)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
