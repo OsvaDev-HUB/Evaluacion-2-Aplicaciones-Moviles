@@ -1,5 +1,6 @@
 package cl.osvaldouhart.climapulse.data
 
+import android.util.Base64
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.datastore.core.DataStore
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
+import javax.crypto.Cipher
 
 /** Tema de la app elegido en Perfil. SYSTEM sigue el ajuste del teléfono. */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -79,7 +81,8 @@ class SessionRepository(
         user?.providerData?.any { it.providerId == EmailAuthProvider.PROVIDER_ID } == true
     }
 
-    val biometricEnabled: Flow<Boolean> = dataStore.data.map { it[BIOMETRIC_ENABLED] ?: false }
+    // La huella solo cuenta como activa si además está guardado el dato cifrado con la llave biométrica.
+    val biometricEnabled: Flow<Boolean> = dataStore.data.map { it.biometricReady() }
     val notificationsEnabled: Flow<Boolean> = dataStore.data.map { it[NOTIFICATIONS_ENABLED] ?: false }
     val autoRefreshEnabled: Flow<Boolean> = dataStore.data.map { it[AUTO_REFRESH_ENABLED] ?: true }
 
@@ -114,7 +117,7 @@ class SessionRepository(
             withTimeoutOrNull(3_000) { runCatching { user.reload().await() } }
             if (auth.currentUser?.isEmailVerified != true) return StartDestination.VerifyEmail
         }
-        return if (dataStore.data.first()[BIOMETRIC_ENABLED] == true) {
+        return if (dataStore.data.first().biometricReady()) {
             StartDestination.Login(biometricUnlock = true)
         } else {
             StartDestination.Home
@@ -202,8 +205,53 @@ class SessionRepository(
         }
     }
 
-    /** Llamado tras una autenticación biométrica exitosa. */
-    fun unlockSession(): Boolean = auth.currentUser != null
+    // ---------- Desbloqueo con huella (CryptoObject) ----------
+    // Al activar la huella se cifra el uid con una llave del Keystore que solo se libera con una
+    // huella válida. Para desbloquear hay que descifrarlo, así que no basta con saltarse el diálogo.
+
+    // Cifrador para activar la huella. Devuelve null si el teléfono no permite crear la llave
+    // (por ejemplo, si no hay huellas registradas en Android).
+    fun biometricEnrollCipher(): Cipher? = runCatching { BiometricKey.encryptCipher() }.getOrNull()
+
+    // Se llama con el cifrador que devolvió el diálogo de huella ya autenticado.
+    suspend fun completeBiometricEnroll(cipher: Cipher): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        val encrypted = runCatching { cipher.doFinal(uid.toByteArray(Charsets.UTF_8)) }.getOrNull() ?: return false
+        dataStore.edit {
+            it[BIOMETRIC_SECRET] = Base64.encodeToString(encrypted, Base64.NO_WRAP)
+            it[BIOMETRIC_IV] = Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
+            it[BIOMETRIC_ENABLED] = true
+        }
+        return true
+    }
+
+    // Cifrador para desbloquear. Si es null la llave ya no sirve (se cambiaron las huellas en
+    // Android) y se desactiva el desbloqueo: hay que entrar con la contraseña y volver a activarlo.
+    suspend fun biometricUnlockCipher(): Cipher? {
+        val iv = dataStore.data.first()[BIOMETRIC_IV]?.let { Base64.decode(it, Base64.NO_WRAP) }
+        val cipher = iv?.let { BiometricKey.decryptCipher(it) }
+        if (cipher == null) disableBiometric()
+        return cipher
+    }
+
+    // true si la huella descifró el uid de la cuenta que tiene la sesión abierta.
+    suspend fun completeBiometricUnlock(cipher: Cipher): Boolean {
+        val user = auth.currentUser ?: return false
+        val secret = dataStore.data.first()[BIOMETRIC_SECRET] ?: return false
+        val uid = runCatching {
+            String(cipher.doFinal(Base64.decode(secret, Base64.NO_WRAP)), Charsets.UTF_8)
+        }.getOrNull()
+        return uid == user.uid
+    }
+
+    suspend fun disableBiometric() {
+        BiometricKey.deleteKey()
+        dataStore.edit {
+            it[BIOMETRIC_ENABLED] = false
+            it.remove(BIOMETRIC_SECRET)
+            it.remove(BIOMETRIC_IV)
+        }
+    }
 
     fun hasStoredSession(): Boolean = auth.currentUser != null
 
@@ -211,7 +259,7 @@ class SessionRepository(
         auth.signOut()
         // Así la próxima vez el selector de Google vuelve a preguntar qué cuenta usar.
         runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
-        dataStore.edit { it[BIOMETRIC_ENABLED] = false }
+        disableBiometric()
     }
 
     // Para cambiar la contraseña Firebase pide haber ingresado hace poco, por eso se confirma la actual primero.
@@ -246,10 +294,8 @@ class SessionRepository(
         } catch (e: Exception) {
             throw e.toAuthException(invalidCredentials = GENERIC_MESSAGE)
         }
-        dataStore.edit {
-            it.remove(introKey(uid))
-            it[BIOMETRIC_ENABLED] = false
-        }
+        dataStore.edit { it.remove(introKey(uid)) }
+        disableBiometric()
         runCatching { credentialManager.clearCredentialState(ClearCredentialStateRequest()) }
     }
 
@@ -275,7 +321,6 @@ class SessionRepository(
         saveUserDocument(user.uid, name, phone)
     }
 
-    suspend fun setBiometricEnabled(enabled: Boolean) = dataStore.edit { it[BIOMETRIC_ENABLED] = enabled }
     suspend fun setNotificationsEnabled(enabled: Boolean) = dataStore.edit { it[NOTIFICATIONS_ENABLED] = enabled }
     suspend fun setAutoRefreshEnabled(enabled: Boolean) = dataStore.edit { it[AUTO_REFRESH_ENABLED] = enabled }
     suspend fun setIntroDone() {
@@ -337,6 +382,11 @@ class SessionRepository(
 
         val WELCOME_HIDDEN = booleanPreferencesKey("welcome_hidden")
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
+        val BIOMETRIC_SECRET = stringPreferencesKey("biometric_secret")
+        val BIOMETRIC_IV = stringPreferencesKey("biometric_iv")
+
+        fun Preferences.biometricReady() =
+            this[BIOMETRIC_ENABLED] == true && this[BIOMETRIC_SECRET] != null && this[BIOMETRIC_IV] != null
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val AUTO_REFRESH_ENABLED = booleanPreferencesKey("auto_refresh_enabled")
         val THEME_MODE = stringPreferencesKey("theme_mode")

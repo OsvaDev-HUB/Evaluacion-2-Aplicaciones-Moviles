@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.crypto.Cipher
 
 class SettingsViewModel(private val session: SessionRepository) : ViewModel() {
     val profile: StateFlow<UserProfile?> = session.profile
@@ -54,9 +55,16 @@ class SettingsViewModel(private val session: SessionRepository) : ViewModel() {
         session.setAutoRefreshEnabled(enabled)
     }
 
-    fun setBiometric(enabled: Boolean) = viewModelScope.launch {
-        session.setBiometricEnabled(enabled)
-        _messages.send(if (enabled) "Desbloqueo con huella activado" else "Desbloqueo con huella desactivado")
+    fun biometricEnrollCipher() = session.biometricEnrollCipher()
+
+    fun completeBiometricEnroll(cipher: Cipher) = viewModelScope.launch {
+        val ok = session.completeBiometricEnroll(cipher)
+        _messages.send(if (ok) "Desbloqueo con huella activado" else "No pudimos activar la huella. Intenta de nuevo.")
+    }
+
+    fun disableBiometric() = viewModelScope.launch {
+        session.disableBiometric()
+        _messages.send("Desbloqueo con huella desactivado")
     }
 
     fun logout(onDone: () -> Unit) = viewModelScope.launch {

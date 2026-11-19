@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import javax.crypto.Cipher
 
 private const val GENERIC_ERROR = "No pudimos completar la acción. Revisa tu conexión e intenta de nuevo."
 
@@ -98,12 +99,26 @@ class LoginViewModel(
         }
     }
 
-    fun onBiometricSuccess() {
+    // Prepara el cifrador para el diálogo de huella. Si las huellas de Android cambiaron,
+    // la llave ya no sirve y se pide entrar con la contraseña.
+    fun prepareBiometric(onReady: (Cipher) -> Unit) {
         viewModelScope.launch {
-            if (session.unlockSession()) {
+            val cipher = session.biometricUnlockCipher()
+            if (cipher != null) {
+                onReady(cipher)
+            } else {
+                canUseBiometric = false
+                errorMessage = "Las huellas del teléfono cambiaron. Ingresa con tu contraseña y vuelve a activar la huella en Perfil."
+            }
+        }
+    }
+
+    fun onBiometricSuccess(cipher: Cipher) {
+        viewModelScope.launch {
+            if (session.completeBiometricUnlock(cipher)) {
                 _loggedIn.send(true)
             } else {
-                errorMessage = "Tu sesión expiró. Ingresa con tu correo y contraseña."
+                errorMessage = "No pudimos verificar tu identidad. Ingresa con tu correo y contraseña."
             }
         }
     }

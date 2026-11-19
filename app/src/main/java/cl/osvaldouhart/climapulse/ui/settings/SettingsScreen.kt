@@ -76,7 +76,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.osvaldouhart.climapulse.ui.auth.BiometricAuth
-import cl.osvaldouhart.climapulse.ui.auth.findFragmentActivity
+import cl.osvaldouhart.climapulse.ui.auth.enrollBiometric
 import cl.osvaldouhart.climapulse.ui.components.ClimaCard
 import cl.osvaldouhart.climapulse.ui.components.CollectMessages
 import cl.osvaldouhart.climapulse.ui.components.ConfirmDialog
@@ -138,16 +138,13 @@ fun SettingsScreen(
 
     fun onBiometricChanged(enabled: Boolean) {
         if (!enabled) {
-            viewModel.setBiometric(false)
+            viewModel.disableBiometric()
             return
         }
         // Se verifica la identidad antes de activar el desbloqueo biométrico.
-        val activity = context.findFragmentActivity() ?: return
-        BiometricAuth.authenticate(
-            activity = activity,
-            title = "Activar desbloqueo con huella",
-            subtitle = "Confirma tu identidad",
-            onSuccess = { viewModel.setBiometric(true) },
+        context.enrollBiometric(
+            cipher = viewModel.biometricEnrollCipher(),
+            onSuccess = viewModel::completeBiometricEnroll,
             onError = { messenger.show(it) }
         )
     }

@@ -56,13 +56,17 @@ fun LoginScreen(
 
     fun launchBiometric() {
         val activity = context.findFragmentActivity() ?: return
-        BiometricAuth.authenticate(
-            activity = activity,
-            title = "Desbloquear ClimaPulse",
-            subtitle = "Usa tu huella o rostro para continuar",
-            onSuccess = viewModel::onBiometricSuccess,
-            onError = viewModel::onBiometricError
-        )
+        viewModel.prepareBiometric { cipher ->
+            BiometricAuth.authenticate(
+                activity = activity,
+                cipher = cipher,
+                title = "Desbloquear ClimaPulse",
+                subtitle = "Usa tu huella para continuar",
+                negativeText = "Usar contraseña",
+                onSuccess = viewModel::onBiometricSuccess,
+                onError = viewModel::onBiometricError
+            )
+        }
     }
 
     LaunchedEffect(viewModel) { viewModel.loggedIn.collect { verified -> onLoggedIn(verified) } }
