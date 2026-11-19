@@ -9,16 +9,18 @@
         android:pathData="M18,80a62,62 0,1 1,124,0a62,62 0,1 1,-124,0z"
         android:fillColor="#2BC1AD"
         android:fillAlpha="0.1" />
-    <path
-        android:pathData="M57,54a29,29 0,1 1,58,0a29,29 0,1 1,-58,0z"
-        android:strokeColor="#2BC1AD"
-        android:strokeWidth="9" />
-    <path
-        android:pathData="M71,54a15,15 0,1 1,30,0a15,15 0,1 1,-30,0z"
-        android:fillColor="#2BC1AD" />
-    <path
-        android:pathData="M80,54a6,6 0,1 1,12,0a6,6 0,1 1,-12,0z"
-        android:fillColor="#FFFFFF" />
+    <group android:name="anillo" android:pivotX="86" android:pivotY="54">
+        <path
+            android:pathData="M57,54a29,29 0,1 1,58,0a29,29 0,1 1,-58,0z"
+            android:strokeColor="#2BC1AD"
+            android:strokeWidth="9" />
+        <path
+            android:pathData="M71,54a15,15 0,1 1,30,0a15,15 0,1 1,-30,0z"
+            android:fillColor="#2BC1AD" />
+        <path
+            android:pathData="M80,54a6,6 0,1 1,12,0a6,6 0,1 1,-12,0z"
+            android:fillColor="#FFFFFF" />
+    </group>
     <path
         android:pathData="M27 72 L80 37 L133 72 L133 117 Q133 124 126 124 H34 Q27 124 27 117 Z"
         android:fillColor="#263345" />
@@ -37,9 +39,11 @@
     <path
         android:pathData="M27 119 L69 93 L80 101 L91 93 L133 119 Q131 124 125 124 H35 Q29 124 27 119 Z"
         android:fillColor="#3A4A5E" />
-    <path
-        android:pathData="M130 36 L134 45 L143 49 L134 53 L130 62 L126 53 L117 49 L126 45 Z"
-        android:fillColor="#FFD166" />
+    <group android:name="destello" android:pivotX="130" android:pivotY="49">
+        <path
+            android:pathData="M130 36 L134 45 L143 49 L134 53 L130 62 L126 53 L117 49 L126 45 Z"
+            android:fillColor="#FFD166" />
+    </group>
     <path
         android:pathData="M142,68a3,3 0,1 1,6,0a3,3 0,1 1,-6,0z"
         android:fillColor="#FFD166" />

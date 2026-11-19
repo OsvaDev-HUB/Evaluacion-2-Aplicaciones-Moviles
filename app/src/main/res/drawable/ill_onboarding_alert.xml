@@ -18,9 +18,11 @@
     <path
         android:pathData="M46,54h0a4,4 0,0 1,4,4v43a4,4 0,0 1,-4,4h0a4,4 0,0 1,-4,-4v-43a4,4 0,0 1,4,-4z"
         android:fillColor="#3A4A5E" />
-    <path
-        android:pathData="M46,77h0a4,4 0,0 1,4,4v19a4,4 0,0 1,-4,4h0a4,4 0,0 1,-4,-4v-19a4,4 0,0 1,4,-4z"
-        android:fillColor="#FFD166" />
+    <group android:name="mercurio" android:pivotX="46" android:pivotY="104">
+        <path
+            android:pathData="M46,77h0a4,4 0,0 1,4,4v19a4,4 0,0 1,-4,4h0a4,4 0,0 1,-4,-4v-19a4,4 0,0 1,4,-4z"
+            android:fillColor="#FFD166" />
+    </group>
     <path
         android:pathData="M36,110a10,10 0,1 1,20,0a10,10 0,1 1,-20,0z"
         android:fillColor="#FFD166" />
@@ -36,15 +38,17 @@
     <path
         android:pathData="M94.5,121h14a1.5,1.5 0,0 1,1.5,1.5v0a1.5,1.5 0,0 1,-1.5,1.5h-14a1.5,1.5 0,0 1,-1.5,-1.5v0a1.5,1.5 0,0 1,1.5,-1.5z"
         android:fillColor="#FFFFFF" />
-    <path
-        android:pathData="M95,68h13a9,9 0,0 1,9,9v13a9,9 0,0 1,-9,9h-13a9,9 0,0 1,-9,-9v-13a9,9 0,0 1,9,-9z"
-        android:fillColor="#FFD166" />
-    <path
-        android:pathData="M101.5,74h0a2.5,2.5 0,0 1,2.5,2.5v8a2.5,2.5 0,0 1,-2.5,2.5h0a2.5,2.5 0,0 1,-2.5,-2.5v-8a2.5,2.5 0,0 1,2.5,-2.5z"
-        android:fillColor="#263345" />
-    <path
-        android:pathData="M98.7,92a2.8,2.8 0,1 1,5.6,0a2.8,2.8 0,1 1,-5.6,0z"
-        android:fillColor="#263345" />
+    <group android:name="aviso" android:pivotX="101.5" android:pivotY="83.5">
+        <path
+            android:pathData="M95,68h13a9,9 0,0 1,9,9v13a9,9 0,0 1,-9,9h-13a9,9 0,0 1,-9,-9v-13a9,9 0,0 1,9,-9z"
+            android:fillColor="#FFD166" />
+        <path
+            android:pathData="M101.5,74h0a2.5,2.5 0,0 1,2.5,2.5v8a2.5,2.5 0,0 1,-2.5,2.5h0a2.5,2.5 0,0 1,-2.5,-2.5v-8a2.5,2.5 0,0 1,2.5,-2.5z"
+            android:fillColor="#263345" />
+        <path
+            android:pathData="M98.7,92a2.8,2.8 0,1 1,5.6,0a2.8,2.8 0,1 1,-5.6,0z"
+            android:fillColor="#263345" />
+    </group>
     <path
         android:pathData="M106,37a14,14 0,1 1,28,0a14,14 0,1 1,-28,0z"
         android:fillColor="#2BC1AD" />

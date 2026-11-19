@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado con docs/ilustraciones/convertir.py (tabla ANIMACIONES). -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ill_onboarding_alert">
+    <target android:name="mercurio">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="900" android:startOffset="0"
+                        android:valueFrom="1" android:valueTo="0.55" />
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="900"
+                        android:valueFrom="0.55" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="aviso">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="400" android:startOffset="700"
+                        android:valueFrom="1" android:valueTo="1.12" />
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="400"
+                        android:valueFrom="1.12" android:valueTo="1" />
+                </set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="400" android:startOffset="700"
+                        android:valueFrom="1" android:valueTo="1.12" />
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="400"
+                        android:valueFrom="1.12" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

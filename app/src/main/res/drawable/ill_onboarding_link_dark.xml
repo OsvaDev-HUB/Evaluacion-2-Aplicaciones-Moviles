@@ -54,32 +54,36 @@
     <path
         android:pathData="M95.5,81h3a2.5,2.5 0,0 1,2.5,2.5v0a2.5,2.5 0,0 1,-2.5,2.5h-3a2.5,2.5 0,0 1,-2.5,-2.5v0a2.5,2.5 0,0 1,2.5,-2.5z"
         android:fillColor="#2BC1AD" />
-    <path
-        android:pathData="M82 77 V73 A8 8 0 0 1 98 73 V77"
-        android:strokeColor="#FFD166"
-        android:strokeWidth="5"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M83,76h14a5,5 0,0 1,5,5v10a5,5 0,0 1,-5,5h-14a5,5 0,0 1,-5,-5v-10a5,5 0,0 1,5,-5z"
-        android:fillColor="#FFD166" />
-    <path
-        android:pathData="M87,84a3,3 0,1 1,6,0a3,3 0,1 1,-6,0z"
-        android:fillColor="#33445A" />
-    <path
-        android:pathData="M90,86h0a1.5,1.5 0,0 1,1.5,1.5v2a1.5,1.5 0,0 1,-1.5,1.5h0a1.5,1.5 0,0 1,-1.5,-1.5v-2a1.5,1.5 0,0 1,1.5,-1.5z"
-        android:fillColor="#33445A" />
+    <group android:name="candado" android:pivotX="90" android:pivotY="84">
+        <path
+            android:pathData="M82 77 V73 A8 8 0 0 1 98 73 V77"
+            android:strokeColor="#FFD166"
+            android:strokeWidth="5"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M83,76h14a5,5 0,0 1,5,5v10a5,5 0,0 1,-5,5h-14a5,5 0,0 1,-5,-5v-10a5,5 0,0 1,5,-5z"
+            android:fillColor="#FFD166" />
+        <path
+            android:pathData="M87,84a3,3 0,1 1,6,0a3,3 0,1 1,-6,0z"
+            android:fillColor="#33445A" />
+        <path
+            android:pathData="M90,86h0a1.5,1.5 0,0 1,1.5,1.5v2a1.5,1.5 0,0 1,-1.5,1.5h0a1.5,1.5 0,0 1,-1.5,-1.5v-2a1.5,1.5 0,0 1,1.5,-1.5z"
+            android:fillColor="#33445A" />
+    </group>
     <path
         android:pathData="M118,39h18a10,10 0,0 1,10,10v62a10,10 0,0 1,-10,10h-18a10,10 0,0 1,-10,-10v-62a10,10 0,0 1,10,-10z"
         android:fillColor="#33445A" />
     <path
         android:pathData="M118,47h18a5,5 0,0 1,5,5v52a5,5 0,0 1,-5,5h-18a5,5 0,0 1,-5,-5v-52a5,5 0,0 1,5,-5z"
         android:fillColor="#506379" />
-    <path
-        android:pathData="M120 79 L125 84 L135 73"
-        android:strokeColor="#2BC1AD"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+    <group android:name="listo" android:pivotX="127" android:pivotY="79">
+        <path
+            android:pathData="M120 79 L125 84 L135 73"
+            android:strokeColor="#2BC1AD"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
     <path
         android:pathData="M121.5,114h11a1.5,1.5 0,0 1,1.5,1.5v0a1.5,1.5 0,0 1,-1.5,1.5h-11a1.5,1.5 0,0 1,-1.5,-1.5v0a1.5,1.5 0,0 1,1.5,-1.5z"
         android:fillColor="#FFFFFF" />

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado con docs/ilustraciones/convertir.py (tabla ANIMACIONES). -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ill_reports_empty">
+    <target android:name="lupa">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="translateX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="1100" android:startOffset="0"
+                        android:valueFrom="0" android:valueTo="-48" />
+                    <objectAnimator android:propertyName="translateX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="1100"
+                        android:valueFrom="-48" android:valueTo="0" />
+                </set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="rotation" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="1100" android:startOffset="0"
+                        android:valueFrom="0" android:valueTo="-12" />
+                    <objectAnimator android:propertyName="rotation" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="1100"
+                        android:valueFrom="-12" android:valueTo="0" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

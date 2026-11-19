@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado con docs/ilustraciones/convertir.py (tabla ANIMACIONES). -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ill_email_verify_dark">
+    <target android:name="anillo">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600" android:startOffset="0"
+                        android:valueFrom="1" android:valueTo="1.08" />
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600"
+                        android:valueFrom="1.08" android:valueTo="1" />
+                </set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600" android:startOffset="0"
+                        android:valueFrom="1" android:valueTo="1.08" />
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600"
+                        android:valueFrom="1.08" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="destello">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="rotation" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="700" android:startOffset="150"
+                        android:valueFrom="0" android:valueTo="25" />
+                    <objectAnimator android:propertyName="rotation" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="700"
+                        android:valueFrom="25" android:valueTo="0" />
+                </set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="700" android:startOffset="150"
+                        android:valueFrom="1" android:valueTo="1.2" />
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="700"
+                        android:valueFrom="1.2" android:valueTo="1" />
+                </set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="700" android:startOffset="150"
+                        android:valueFrom="1" android:valueTo="1.2" />
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="700"
+                        android:valueFrom="1.2" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

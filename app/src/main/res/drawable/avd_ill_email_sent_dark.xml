@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado con docs/ilustraciones/convertir.py (tabla ANIMACIONES). -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ill_email_sent_dark">
+    <target android:name="sobre">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="translateX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600" android:startOffset="0"
+                        android:valueFrom="0" android:valueTo="5" />
+                    <objectAnimator android:propertyName="translateX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600"
+                        android:valueFrom="5" android:valueTo="0" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="estela">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="translateX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600" android:startOffset="0"
+                        android:valueFrom="0" android:valueTo="-6" />
+                    <objectAnimator android:propertyName="translateX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="600"
+                        android:valueFrom="-6" android:valueTo="0" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="check">
+        <aapt:attr name="android:animation">
+            <set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350" android:startOffset="450"
+                        android:valueFrom="1" android:valueTo="1.12" />
+                    <objectAnimator android:propertyName="scaleX" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350"
+                        android:valueFrom="1.12" android:valueTo="1" />
+                </set>
+                <set android:ordering="sequentially">
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350" android:startOffset="450"
+                        android:valueFrom="1" android:valueTo="1.12" />
+                    <objectAnimator android:propertyName="scaleY" android:valueType="floatType" android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="350"
+                        android:valueFrom="1.12" android:valueTo="1" />
+                </set>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

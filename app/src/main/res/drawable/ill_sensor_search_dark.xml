@@ -22,6 +22,7 @@
         android:pathData="M52,89h11a2,2 0,0 1,2,2v0a2,2 0,0 1,-2,2h-11a2,2 0,0 1,-2,-2v0a2,2 0,0 1,2,-2z"
         android:fillColor="#2BC1AD" />
     <path
+        android:name="led"
         android:pathData="M81.5,64a4.5,4.5 0,1 1,9,0a4.5,4.5 0,1 1,-9,0z"
         android:fillColor="#FFD166" />
     <path
@@ -52,16 +53,19 @@
         android:pathData="M83.5,33a4,4 0,1 1,8,0a4,4 0,1 1,-8,0z"
         android:fillColor="#2BC1AD" />
     <path
+        android:name="arco1"
         android:pathData="M106 71 Q116 80 106 89"
         android:strokeColor="#2BC1AD"
         android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
+        android:name="arco2"
         android:pathData="M114 62 Q133 80 114 98"
         android:strokeColor="#2BC1AD"
         android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
+        android:name="arco3"
         android:pathData="M122 52 Q152 80 122 108"
         android:strokeColor="#2BC1AD"
         android:strokeWidth="5"

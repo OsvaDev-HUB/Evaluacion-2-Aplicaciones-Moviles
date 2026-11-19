@@ -36,7 +36,6 @@ import cl.osvaldouhart.climapulse.ui.components.ScreenTitle
 import cl.osvaldouhart.climapulse.ui.components.StatusPill
 import cl.osvaldouhart.climapulse.ui.components.formatDate
 import cl.osvaldouhart.climapulse.ui.components.Illustration
-import cl.osvaldouhart.climapulse.ui.components.illustrationPainter
 import cl.osvaldouhart.climapulse.ui.theme.ClimaShapes
 import cl.osvaldouhart.climapulse.ui.theme.Dimens
 import cl.osvaldouhart.climapulse.ui.theme.Teal
@@ -54,7 +53,7 @@ fun ReportsScreen(viewModel: HomeViewModel) {
             onRetry = viewModel::retry,
             modifier = Modifier.fillMaxSize(),
             title = "Aún no hay datos para el reporte",
-            illustration = illustrationPainter(Illustration.REPORTS_EMPTY)
+            illustration = Illustration.REPORTS_EMPTY
         )
         UiState.Empty -> Unit
         is UiState.Success -> ReportsContent(

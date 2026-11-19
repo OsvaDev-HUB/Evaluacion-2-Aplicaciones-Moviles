@@ -55,9 +55,8 @@ import androidx.compose.ui.semantics.Role
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
 import cl.osvaldouhart.climapulse.ui.components.ClimaLogo
 import cl.osvaldouhart.climapulse.ui.components.Illustration
+import cl.osvaldouhart.climapulse.ui.components.IllustrationImage
 import cl.osvaldouhart.climapulse.ui.theme.LocalDarkTheme
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.Image
 import cl.osvaldouhart.climapulse.ui.components.CookieShape
 import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
 import cl.osvaldouhart.climapulse.ui.theme.ClimaShapes
@@ -115,7 +114,7 @@ private val pages = listOf(
 // versión clara de la ilustración (su navy más oscuro contrasta mejor sobre fondo claro).
 @Composable
 private fun OnboardingIllustration(illustration: Illustration) {
-    Image(painterResource(illustration.light), contentDescription = null, modifier = Modifier.size(180.dp))
+    IllustrationImage(illustration, size = 180.dp, forceLight = true)
 }
 
 /** Bienvenida: aparece después del splash en cada apertura, salvo que se marque "No volver a mostrar". */

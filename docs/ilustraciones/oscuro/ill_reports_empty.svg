@@ -16,7 +16,9 @@
   <rect x="93" y="87" width="10" height="4" rx="2" fill="#2BC1AD"/>
   <rect x="107" y="87" width="10" height="4" rx="2" fill="#2BC1AD"/>
   <!-- Search magnifier -->
+  <g id="lupa" data-pivot="114,112">
   <circle cx="114" cy="112" r="19" fill="#33445A"/>
   <circle cx="111" cy="108" r="11" fill="none" stroke="#FFD166" stroke-width="6"/>
   <path d="M119 116 L132 129" stroke="#FFD166" stroke-width="7" stroke-linecap="round"/>
+  </g>
 </svg>

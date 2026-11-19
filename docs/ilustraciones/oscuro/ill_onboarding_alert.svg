@@ -4,7 +4,9 @@
   <rect x="34" y="44" width="24" height="65" rx="12" fill="#33445A"/>
   <circle cx="46" cy="110" r="19" fill="#33445A"/>
   <rect x="42" y="54" width="8" height="51" rx="4" fill="#506379"/>
+  <g id="mercurio" data-pivot="46,104">
   <rect x="42" y="77" width="8" height="27" rx="4" fill="#FFD166"/>
+  </g>
   <circle cx="46" cy="110" r="10" fill="#FFD166"/>
   <circle cx="43" cy="107" r="3" fill="#FFFFFF"/>
   <!-- Smartphone -->
@@ -12,9 +14,11 @@
   <rect x="81" y="43" width="41" height="73" rx="7" fill="#506379"/>
   <rect x="93" y="121" width="17" height="3" rx="1.5" fill="#FFFFFF"/>
   <!-- Notification pill and geometric exclamation mark -->
+  <g id="aviso" data-pivot="101.5,83.5">
   <rect x="86" y="68" width="31" height="31" rx="9" fill="#FFD166"/>
   <rect x="99" y="74" width="5" height="13" rx="2.5" fill="#33445A"/>
   <circle cx="101.5" cy="92" r="2.8" fill="#33445A"/>
+  </g>
   <!-- All-good detail -->
   <circle cx="120" cy="37" r="14" fill="#2BC1AD"/>
   <path d="M113 37 L118 42 L127 32" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
