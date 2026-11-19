@@ -1,11 +1,10 @@
 package cl.osvaldouhart.climapulse.ui.auth
 
+import cl.osvaldouhart.climapulse.ui.components.IllustrationImage
+import cl.osvaldouhart.climapulse.ui.components.Illustration
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MarkEmailUnread
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,7 +18,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
-import cl.osvaldouhart.climapulse.ui.components.PulseRings
 import cl.osvaldouhart.climapulse.ui.components.SecondaryButton
 
 /** Se muestra después de registrarse (o al entrar sin haber verificado el correo). */
@@ -33,14 +31,11 @@ fun VerifyEmailScreen(
 
     AuthLayout {
         Spacer(Modifier.height(24.dp))
-        PulseRings(size = 200.dp, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Icon(
-                Icons.Rounded.MarkEmailUnread,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(56.dp)
-            )
-        }
+        IllustrationImage(
+            Illustration.EMAIL_VERIFY,
+            size = 180.dp,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
         Text(
             "Verifica tu correo",
             style = MaterialTheme.typography.headlineSmall,

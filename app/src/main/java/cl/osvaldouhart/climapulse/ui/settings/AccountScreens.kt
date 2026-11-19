@@ -1,5 +1,9 @@
 package cl.osvaldouhart.climapulse.ui.settings
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import cl.osvaldouhart.climapulse.ui.components.IllustrationImage
+import cl.osvaldouhart.climapulse.ui.components.Illustration
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material.icons.Icons
@@ -12,10 +16,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -148,6 +152,11 @@ fun DeleteAccountScreen(
     }
 
     AuthLayout(topBar = { BackTopBar(title = "Eliminar cuenta", onBack = onBack) }) {
+        IllustrationImage(
+            Illustration.DELETE_ACCOUNT,
+            size = 150.dp,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
         ScreenTitle(
             title = "Eliminar tu cuenta",
             subtitle = "Se borrarán tu cuenta, tu perfil y tus datos guardados en ClimaPulse. No podrás recuperarlos."

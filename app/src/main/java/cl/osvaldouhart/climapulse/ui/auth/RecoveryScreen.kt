@@ -1,31 +1,25 @@
 package cl.osvaldouhart.climapulse.ui.auth
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import cl.osvaldouhart.climapulse.ui.components.IllustrationImage
+import cl.osvaldouhart.climapulse.ui.components.Illustration
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Mail
-import androidx.compose.material.icons.rounded.MarkEmailRead
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.osvaldouhart.climapulse.ui.components.BackTopBar
 import cl.osvaldouhart.climapulse.ui.components.ClimaTextField
@@ -33,7 +27,6 @@ import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
 import cl.osvaldouhart.climapulse.ui.components.ScreenTitle
 import cl.osvaldouhart.climapulse.ui.components.SecondaryButton
 import cl.osvaldouhart.climapulse.ui.components.revealOnFocus
-import cl.osvaldouhart.climapulse.ui.components.PulseRings
 
 /** Recuperación sin fricción: un solo campo (precargado desde el login) y una confirmación clara. */
 @Composable
@@ -47,14 +40,11 @@ fun RecoveryScreen(
     AuthLayout(topBar = { BackTopBar(title = "Recuperar contraseña", onBack = onBack) }) {
         if (viewModel.sent) {
             Spacer(Modifier.height(24.dp))
-            PulseRings(size = 200.dp, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Icon(
-                    Icons.Rounded.MarkEmailRead,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(56.dp)
-                )
-            }
+            IllustrationImage(
+                Illustration.EMAIL_SENT,
+                size = 180.dp,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
             Text(
                 "Revisa tu correo",
                 style = MaterialTheme.typography.headlineSmall,

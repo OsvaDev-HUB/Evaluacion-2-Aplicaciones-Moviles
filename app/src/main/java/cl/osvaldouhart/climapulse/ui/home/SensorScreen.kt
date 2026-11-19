@@ -59,6 +59,8 @@ import cl.osvaldouhart.climapulse.ui.components.IconBadge
 import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
 import cl.osvaldouhart.climapulse.ui.components.PulseRings
 import cl.osvaldouhart.climapulse.ui.components.ScreenTitle
+import cl.osvaldouhart.climapulse.ui.components.Illustration
+import cl.osvaldouhart.climapulse.ui.components.IllustrationImage
 import cl.osvaldouhart.climapulse.ui.components.SecondaryButton
 import cl.osvaldouhart.climapulse.ui.components.SectionHeading
 import cl.osvaldouhart.climapulse.ui.components.StatusPill
@@ -113,6 +115,11 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
             }
 
             else -> {
+                IllustrationImage(
+                    Illustration.SENSOR_SEARCH,
+                    size = 180.dp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
                 PrimaryButton(text = "Buscar sensor", icon = Icons.Rounded.Sensors, onClick = viewModel::startMonitor)
             }
         }

@@ -140,9 +140,10 @@ fun ErrorState(
     message: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Algo no salió como esperábamos"
+    title: String = "Algo no salió como esperábamos",
+    illustration: Painter = painterResource(R.drawable.ill_offline)
 ) {
-    StateMessage(painterResource(R.drawable.ill_offline), title, message, modifier) {
+    StateMessage(illustration, title, message, modifier) {
         PrimaryButton(text = "Reintentar", onClick = onRetry, icon = Icons.Rounded.Refresh)
     }
 }

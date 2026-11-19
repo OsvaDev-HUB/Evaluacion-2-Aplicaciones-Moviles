@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <circle cx="80" cy="80" r="62" fill="#FFD166" fill-opacity="0.10"/>
+  <!-- Profile card -->
+  <rect x="30" y="28" width="99" height="108" rx="15" fill="#33445A"/>
+  <rect x="41" y="39" width="77" height="86" rx="10" fill="#506379"/>
+  <circle cx="79" cy="69" r="19" fill="#33445A"/>
+  <path d="M51 110 Q53 88 79 88 Q105 88 107 110 V113 H51 Z" fill="#33445A"/>
+  <!-- Caution icon, calm and non-destructive -->
+  <path d="M112 88 Q115 84 119 88 L143 129 Q146 135 138 135 H92 Q84 135 88 128 Z" fill="#FFD166"/>
+  <rect x="112.5" y="105" width="5" height="15" rx="2.5" fill="#33445A"/>
+  <circle cx="115" cy="126" r="3" fill="#33445A"/>
+</svg>

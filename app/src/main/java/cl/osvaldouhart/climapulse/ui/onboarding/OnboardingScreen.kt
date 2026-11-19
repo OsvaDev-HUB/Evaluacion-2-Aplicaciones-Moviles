@@ -54,6 +54,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.Role
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
 import cl.osvaldouhart.climapulse.ui.components.ClimaLogo
+import cl.osvaldouhart.climapulse.ui.components.Illustration
+import cl.osvaldouhart.climapulse.ui.theme.LocalDarkTheme
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 import cl.osvaldouhart.climapulse.ui.components.CookieShape
 import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
 import cl.osvaldouhart.climapulse.ui.theme.ClimaShapes
@@ -98,27 +102,21 @@ private val pages = listOf(
         body = "Si una lectura sale del rango ideal, la forma se vuelve amarilla y te sugerimos qué hacer: ventilar, encender la lámpara o pausar.",
         lobes = 5,
         depth = 0.09f
-    ) {
-        Icon(
-            Icons.Rounded.WarningAmber,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-            modifier = Modifier.size(88.dp)
-        )
-    },
+    ) { OnboardingIllustration(Illustration.ONBOARDING_ALERT) },
     OnboardingPage(
         title = "Sensor real, por WiFi",
         body = "Conecta el sensor ESP8266 con un PIN de 6 dígitos. Las lecturas viajan cifradas y quedan guardadas en tu cuenta.",
         lobes = 12,
         depth = 0.05f
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Sensors, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(52.dp))
-            Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp).size(28.dp))
-            Icon(Icons.Rounded.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(52.dp))
-        }
-    }
+    ) { OnboardingIllustration(Illustration.ONBOARDING_LINK) }
 )
+
+// Las formas de la bienvenida son claras en los dos temas, así que siempre se usa la
+// versión clara de la ilustración (su navy más oscuro contrasta mejor sobre fondo claro).
+@Composable
+private fun OnboardingIllustration(illustration: Illustration) {
+    Image(painterResource(illustration.light), contentDescription = null, modifier = Modifier.size(180.dp))
+}
 
 /** Bienvenida: aparece después del splash en cada apertura, salvo que se marque "No volver a mostrar". */
 @Composable
@@ -132,12 +130,15 @@ fun OnboardingScreen(
     val isLastPage = currentPage == pages.lastIndex
     val colors = MaterialTheme.colorScheme
 
-    // Color de la forma por página: turquesa (todo bien), amarillo (revisar), verde gris (enlace).
+    // Color de la forma por página: turquesa (todo bien), amarillo (revisar), gris azulado (enlace).
+    // En tema oscuro el gris azulado del contenedor es navy y se confunde con la ilustración,
+    // por eso se usa el secundario, que es claro. Así las tres formas son claras en ambos temas.
+    val darkTheme = LocalDarkTheme.current
     val shapeColor by animateColorAsState(
         when (currentPage) {
             0 -> colors.primaryContainer
             1 -> colors.tertiaryContainer
-            else -> colors.secondaryContainer
+            else -> if (darkTheme) colors.secondary else colors.secondaryContainer
         },
         label = "shapeColor"
     )
