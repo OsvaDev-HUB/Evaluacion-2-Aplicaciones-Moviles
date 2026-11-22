@@ -35,7 +35,9 @@ data class EnvironmentReading(
 data class Actuators(
     val fan: Boolean = false,
     val lamp: Boolean = false,
-    val paused: Boolean = false
+    val paused: Boolean = false,
+    // Modo ahorro: el nodo mide cada 10 s y la radio WiFi duerme entre mensajes.
+    val eco: Boolean = false
 )
 
 data class UserProfile(val name: String, val email: String, val phone: String)

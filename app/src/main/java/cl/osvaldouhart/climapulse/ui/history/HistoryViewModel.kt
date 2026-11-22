@@ -31,6 +31,10 @@ class HistoryViewModel(private val environment: EnvironmentRepository) : ViewMod
         .catch { emit(UiState.Error(it.toUserMessage())) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState.Loading)
 
+    /** Mediciones que esperan internet para subir a la nube. */
+    val pendingSync: StateFlow<Int> = environment.pendingSync
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     /** Rangos ideales de cada métrica, para marcar las mediciones fuera de rango. */
     val ranges: StateFlow<Map<Metric, IdealRange>> = environment.idealRanges
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Metric.entries.associateWith { it.defaultRange })

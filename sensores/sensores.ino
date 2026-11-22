@@ -2,10 +2,22 @@
 // Lee el DHT11 y el LDR, y envia las lecturas por WiFi a la app (modo Monitor).
 // Usa el mismo enlace que la app: puerto 5050, mensajes JSON cifrados con AES-GCM
 // y una llave que sale del PIN (PBKDF2 con SHA-256).
+//
+// Protocolo (version 2):
+// - La app saluda con "hola" y un reto aleatorio. El nodo responde "bienvenida" con el mismo
+//   reto y un numero de sesion nuevo. Desde ahi cada mensaje lleva la sesion y un contador "n"
+//   que siempre sube: un mensaje grabado y reenviado despues se rechaza (anti-replay).
+// - Sin telefono conectado, el nodo guarda lecturas en memoria y las entrega al reconectarse.
+// - El nodo avisa por su cuenta cuando el DHT11 falla, cuando se recupera, cuando la senal
+//   WiFi esta debil o cuando se llena la memoria.
+// - Tambien recibe comandos por el monitor serie (escribe "ayuda").
+//
+// Necesita la libreria ArduinoJson 7 y "DHT sensor library" de Adafruit.
 
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <DHT.h>
+#include <ArduinoJson.h>
 #include <bearssl/bearssl.h>
 #include <base64.h>
 #include <libb64/cdecode.h>
@@ -30,8 +42,16 @@ constexpr float AJUSTE_HUMEDAD = 0.0;
 constexpr int LECTURAS_PROMEDIO = 5;
 
 constexpr uint16_t PUERTO = 5050;
-constexpr unsigned long INTERVALO_ENVIO = 3000;  // una lectura cada 3 segundos
+constexpr unsigned long INTERVALO_ENVIO = 3000;        // una lectura cada 3 segundos
+constexpr unsigned long INTERVALO_AHORRO = 10000;      // en modo ahorro, cada 10 segundos
+constexpr unsigned long INTERVALO_GUARDADO = 15000;    // sin telefono se guarda una cada 15 s
+constexpr unsigned long INTERVALO_PULSO = 8000;        // latido si no se mando nada en 8 s
+constexpr unsigned long INTERVALO_WIFI = 10000;        // reintento de WiFi cada 10 s
 constexpr int MAX_MONITORES = 3;
+constexpr int MAX_GUARDADAS = 240;                     // 240 x 15 s = 1 hora sin telefono
+constexpr int LOTE_HISTORIAL = 20;                     // lecturas por mensaje "historial"
+constexpr int FALLAS_PARA_AVISO = 3;                   // lecturas seguidas fallidas antes de avisar
+constexpr int SENAL_DEBIL = -80;                       // dBm
 const char* NOMBRE_NODO = "ClimaPulse ESP8266";
 
 DHT dht(PIN_DHT, DHT11);
@@ -41,9 +61,13 @@ uint8_t llave[32];  // llave AES de 256 bits creada a partir del PIN
 // Un telefono conectado en modo Monitor
 struct Monitor {
   WiFiClient cliente;
-  String linea;        // texto recibido que aun no termina en salto de linea
-  bool saludo;         // true cuando ya mando "hola" con el PIN correcto
+  String linea;               // texto recibido que aun no termina en salto de linea
+  bool saludo;                // true cuando ya mando "hola" con el PIN correcto
   unsigned long conectadoEn;
+  String sesion;              // numero de sesion de esta conexion
+  uint32_t enviados;          // contador de mensajes que manda el nodo
+  uint32_t ultimoRecibido;    // contador del ultimo mensaje aceptado de la app
+  unsigned long ultimoEnvio;  // para saber cuando mandar el latido
 };
 Monitor monitores[MAX_MONITORES];
 
@@ -51,9 +75,30 @@ Monitor monitores[MAX_MONITORES];
 bool ventilador = false;
 bool lampara = false;
 bool pausado = false;
+bool ahorro = false;
+
+// Lectura guardada mientras no hay telefono. "momento" es millis() al medir.
+struct Guardada {
+  float temperatura;
+  float humedad;
+  float luz;
+  unsigned long momento;
+};
+Guardada guardadas[MAX_GUARDADAS];
+int primeraGuardada = 0;   // indice de la mas antigua
+int totalGuardadas = 0;
+uint32_t perdidas = 0;     // lecturas que se sobrescribieron por falta de espacio
+int monitorHistorial = -1; // monitor al que se le esta entregando el historial
 
 unsigned long ultimoEnvio = 0;
-String ultimaLectura = "";  // JSON de la ultima lectura, para mandarla al conectarse
+unsigned long ultimoGuardado = 0;
+unsigned long ultimoIntentoWifi = 0;
+bool wifiListo = false;
+int fallasSeguidas = 0;
+bool avisoFalla = false;
+bool avisoSenal = false;
+float ultimaTemperatura = NAN, ultimaHumedad = NAN, ultimaLuz = NAN;  // ultima lectura valida
+String entradaSerie = "";
 
 // ===================== Cifrado =====================
 
@@ -134,32 +179,146 @@ bool descifrar(const String& linea, String& texto) {
   return valido;
 }
 
+// 16 caracteres hexadecimales al azar (64 bits), para el numero de sesion.
+String textoAleatorio() {
+  uint8_t bytes[8];
+  ESP.random(bytes, sizeof(bytes));
+  String texto = "";
+  for (uint8_t b : bytes) {
+    if (b < 16) texto += "0";
+    texto += String(b, HEX);
+  }
+  return texto;
+}
+
 // ===================== Mensajes =====================
 
-String textoBool(bool valor) {
-  return valor ? "true" : "false";
+void llenarActuadores(JsonObject objeto) {
+  objeto["fan"] = ventilador;
+  objeto["lamp"] = lampara;
+  objeto["paused"] = pausado;
+  objeto["eco"] = ahorro;
 }
 
-String jsonActuadores() {
-  return "{\"fan\":" + textoBool(ventilador) + ",\"lamp\":" + textoBool(lampara) +
-         ",\"paused\":" + textoBool(pausado) + "}";
-}
-
-void enviar(Monitor& monitor, const String& json) {
+// Agrega la sesion y el contador, cifra y envia. Cada monitor tiene su propia sesion.
+void enviar(Monitor& monitor, JsonDocument& mensaje) {
+  mensaje["sesion"] = monitor.sesion;
+  mensaje["n"] = ++monitor.enviados;
+  String json;
+  serializeJson(mensaje, json);
   monitor.cliente.print(cifrar(json) + "\n");
+  monitor.ultimoEnvio = millis();
 }
 
-// Envia un mensaje a todos los monitores que ya saludaron
-void enviarATodos(const String& json) {
-  for (int i = 0; i < MAX_MONITORES; i++) {
-    if (monitores[i].saludo && monitores[i].cliente.connected()) enviar(monitores[i], json);
-  }
+bool activo(Monitor& monitor) {
+  return monitor.saludo && monitor.cliente.connected();
+}
+
+int monitoresActivos() {
+  int total = 0;
+  for (int i = 0; i < MAX_MONITORES; i++) if (activo(monitores[i])) total++;
+  return total;
+}
+
+void enviarEstado(Monitor& monitor) {
+  JsonDocument mensaje;
+  mensaje["tipo"] = "estado";
+  llenarActuadores(mensaje["actuadores"].to<JsonObject>());
+  enviar(monitor, mensaje);
+}
+
+void enviarEstadoATodos() {
+  for (int i = 0; i < MAX_MONITORES; i++) if (activo(monitores[i])) enviarEstado(monitores[i]);
+}
+
+// Aviso que el nodo manda por su cuenta para que la app informe al usuario.
+// Estos textos van con tildes porque se muestran en la app (el JSON viaja en UTF-8).
+void enviarAviso(Monitor& monitor, const char* codigo, const String& texto) {
+  JsonDocument mensaje;
+  mensaje["tipo"] = "aviso";
+  mensaje["codigo"] = codigo;
+  mensaje["mensaje"] = texto;
+  enviar(monitor, mensaje);
+}
+
+void avisarATodos(const char* codigo, const String& texto) {
+  Serial.println(String("Aviso: ") + texto);
+  for (int i = 0; i < MAX_MONITORES; i++) if (activo(monitores[i])) enviarAviso(monitores[i], codigo, texto);
+}
+
+void llenarLectura(JsonObject lectura, float temperatura, float humedad, float luz) {
+  lectura["temperature"] = serialized(String(temperatura, 1));
+  lectura["humidity"] = serialized(String(humedad, 1));
+  lectura["light"] = serialized(String(luz, 0));
+  lectura["timestampMillis"] = 0;  // la hora la pone el telefono (el ESP8266 no tiene reloj)
+  lectura["usingHardware"] = true;
+  lectura["origin"] = NOMBRE_NODO;
+}
+
+void enviarLectura(Monitor& monitor) {
+  JsonDocument mensaje;
+  mensaje["tipo"] = "lectura";
+  llenarLectura(mensaje["lectura"].to<JsonObject>(), ultimaTemperatura, ultimaHumedad, ultimaLuz);
+  enviar(monitor, mensaje);
 }
 
 void aplicarActuadores() {
   // Los LED de la placa se encienden con LOW
   digitalWrite(PIN_VENTILADOR, ventilador ? LOW : HIGH);
   digitalWrite(PIN_LAMPARA, lampara ? LOW : HIGH);
+  // Modo ahorro: la radio WiFi duerme entre mensajes (modem sleep).
+  WiFi.setSleepMode(ahorro ? WIFI_MODEM_SLEEP : WIFI_NONE_SLEEP);
+}
+
+// ===================== Lecturas guardadas sin conexion =====================
+
+void guardarLectura(float temperatura, float humedad, float luz) {
+  int indice = (primeraGuardada + totalGuardadas) % MAX_GUARDADAS;
+  if (totalGuardadas == MAX_GUARDADAS) {
+    // Memoria llena: se pierde la mas antigua.
+    primeraGuardada = (primeraGuardada + 1) % MAX_GUARDADAS;
+    perdidas++;
+  } else {
+    totalGuardadas++;
+  }
+  guardadas[indice] = {temperatura, humedad, luz, millis()};
+  Serial.printf("Sin telefono: lectura guardada (%d en memoria)\n", totalGuardadas);
+}
+
+// Envia un lote de lecturas guardadas. "edad" son los milisegundos desde que se midio;
+// con eso el telefono calcula la hora real.
+void enviarHistorial(int indiceMonitor) {
+  Monitor& monitor = monitores[indiceMonitor];
+  if (totalGuardadas == 0) {
+    monitorHistorial = -1;
+    return;
+  }
+  monitorHistorial = indiceMonitor;
+  JsonDocument mensaje;
+  mensaje["tipo"] = "historial";
+  JsonArray lista = mensaje["lecturas"].to<JsonArray>();
+  int cantidad = min(totalGuardadas, LOTE_HISTORIAL);
+  unsigned long ahora = millis();
+  for (int i = 0; i < cantidad; i++) {
+    Guardada& g = guardadas[(primeraGuardada + i) % MAX_GUARDADAS];
+    JsonObject item = lista.add<JsonObject>();
+    item["temperature"] = serialized(String(g.temperatura, 1));
+    item["humidity"] = serialized(String(g.humedad, 1));
+    item["light"] = serialized(String(g.luz, 0));
+    item["edad"] = ahora - g.momento;
+  }
+  mensaje["quedan"] = totalGuardadas - cantidad;
+  enviar(monitor, mensaje);
+}
+
+// La app confirma que guardo el lote: recien ahi se borra de la memoria.
+void confirmarHistorial(int indiceMonitor, int cantidad) {
+  if (indiceMonitor != monitorHistorial) return;
+  cantidad = constrain(cantidad, 0, min(totalGuardadas, LOTE_HISTORIAL));
+  primeraGuardada = (primeraGuardada + cantidad) % MAX_GUARDADAS;
+  totalGuardadas -= cantidad;
+  Serial.printf("Historial entregado: %d lecturas (quedan %d)\n", cantidad, totalGuardadas);
+  enviarHistorial(indiceMonitor);
 }
 
 // ===================== Lecturas =====================
@@ -170,12 +329,22 @@ float historialHumedad[LECTURAS_PROMEDIO];
 int lecturasGuardadas = 0;
 int posicionHistorial = 0;
 
-void enviarLectura() {
+void medir() {
   float humedadCruda = dht.readHumidity();
   float temperaturaCruda = dht.readTemperature();
   if (isnan(humedadCruda) || isnan(temperaturaCruda)) {
     Serial.println("Error al leer el DHT11; revisa su conexion.");
+    fallasSeguidas++;
+    if (fallasSeguidas == FALLAS_PARA_AVISO && !avisoFalla) {
+      avisoFalla = true;
+      avisarATodos("sensor_falla", "El DHT11 no responde. Revisa el cable de datos (D1) y la alimentación.");
+    }
     return;
+  }
+  fallasSeguidas = 0;
+  if (avisoFalla) {
+    avisoFalla = false;
+    avisarATodos("sensor_ok", "El DHT11 volvió a medir.");
   }
 
   // Se guarda la lectura nueva encima de la mas antigua
@@ -192,25 +361,25 @@ void enviarLectura() {
   }
 
   // Promedio + ajuste de calibracion. La humedad no puede salir de 0 a 100 %.
-  float temperatura = sumaTemperatura / lecturasGuardadas + AJUSTE_TEMPERATURA;
-  float humedad = constrain(sumaHumedad / lecturasGuardadas + AJUSTE_HUMEDAD, 0.0f, 100.0f);
+  ultimaTemperatura = sumaTemperatura / lecturasGuardadas + AJUSTE_TEMPERATURA;
+  ultimaHumedad = constrain(sumaHumedad / lecturasGuardadas + AJUSTE_HUMEDAD, 0.0f, 100.0f);
 
   // A0 entrega 0 a 1023. Se pasa a una escala de 0 a 1000 para la app.
   // analogRead puede llegar a 1024, por eso se limita a 1023.
   int lecturaLuz = min(analogRead(PIN_LUZ), 1023);
   if (INVERTIR_LUZ) lecturaLuz = 1023 - lecturaLuz;
-  float luz = lecturaLuz * 1000.0 / 1023.0;
+  ultimaLuz = lecturaLuz * 1000.0 / 1023.0;
 
   // Entre parentesis va la lectura cruda del DHT11 (sirve para calibrar)
   Serial.printf("Temperatura: %.1f C (cruda %.1f) | Humedad: %.1f %% (cruda %.1f) | Luz: %.0f\n",
-                temperatura, temperaturaCruda, humedad, humedadCruda, luz);
+                ultimaTemperatura, temperaturaCruda, ultimaHumedad, humedadCruda, ultimaLuz);
 
-  // La hora la pone el telefono al recibirla (el ESP8266 no tiene reloj).
-  ultimaLectura = "{\"temperature\":" + String(temperatura, 1) +
-                  ",\"humidity\":" + String(humedad, 1) +
-                  ",\"light\":" + String(luz, 0) +
-                  ",\"timestampMillis\":0,\"usingHardware\":true,\"origin\":\"" + NOMBRE_NODO + "\"}";
-  enviarATodos("{\"tipo\":\"lectura\",\"lectura\":" + ultimaLectura + "}");
+  if (monitoresActivos() > 0) {
+    for (int i = 0; i < MAX_MONITORES; i++) if (activo(monitores[i])) enviarLectura(monitores[i]);
+  } else if (millis() - ultimoGuardado >= INTERVALO_GUARDADO || totalGuardadas == 0) {
+    ultimoGuardado = millis();
+    guardarLectura(ultimaTemperatura, ultimaHumedad, ultimaLuz);
+  }
 }
 
 // ===================== Monitores =====================
@@ -232,72 +401,215 @@ void aceptarMonitores() {
   nuevo.stop();  // no hay espacio para mas monitores
 }
 
-void desconectar(Monitor& monitor) {
+void desconectar(int indice) {
+  Monitor& monitor = monitores[indice];
   monitor.cliente.stop();
   monitor.saludo = false;
   monitor.linea = "";
+  if (monitorHistorial == indice) monitorHistorial = -1;
 }
 
-void procesarLinea(Monitor& monitor) {
-  String texto;
-  if (!descifrar(monitor.linea, texto)) {
-    Serial.println("Mensaje rechazado: PIN incorrecto.");
-    desconectar(monitor);
+void saludar(int indice, JsonDocument& hola) {
+  Monitor& monitor = monitores[indice];
+  const char* reto = hola["reto"] | "";
+  // El reto debe venir y ser corto: el nodo lo devuelve para probar que la respuesta es nueva.
+  if (strlen(reto) < 8 || strlen(reto) > 32) {
+    desconectar(indice);
     return;
   }
+  monitor.saludo = true;
+  monitor.sesion = textoAleatorio();
+  monitor.enviados = 0;
+  monitor.ultimoRecibido = 0;
+  Serial.println(String("Monitor conectado: ") + (hola["nombre"] | "sin nombre"));
+
+  JsonDocument bienvenida;
+  bienvenida["tipo"] = "bienvenida";
+  bienvenida["nombre"] = NOMBRE_NODO;
+  bienvenida["reto"] = reto;
+  bienvenida["version"] = 2;
+  bienvenida["pendientes"] = totalGuardadas;
+  llenarActuadores(bienvenida["actuadores"].to<JsonObject>());
+  enviar(monitor, bienvenida);
+
+  if (!isnan(ultimaTemperatura) && !pausado) enviarLectura(monitor);
+  if (avisoFalla) enviarAviso(monitor, "sensor_falla", "El DHT11 no responde. Revisa el cable de datos (D1) y la alimentación.");
+  if (perdidas > 0) {
+    enviarAviso(monitor, "memoria_llena", "Se perdieron " + String(perdidas) + " lecturas antiguas porque se llenó la memoria del sensor.");
+    perdidas = 0;
+  }
+  // Entrega lo que se guardo sin conexion (de a un monitor a la vez).
+  if (totalGuardadas > 0 && monitorHistorial < 0) enviarHistorial(indice);
+}
+
+void procesarLinea(int indice) {
+  Monitor& monitor = monitores[indice];
+  String texto;
+  if (!descifrar(monitor.linea, texto)) {
+    Serial.println("Mensaje rechazado: PIN incorrecto o mensaje alterado.");
+    desconectar(indice);
+    return;
+  }
+
+  JsonDocument mensaje;
+  if (deserializeJson(mensaje, texto) != DeserializationError::Ok) {
+    Serial.println("Mensaje rechazado: JSON invalido.");
+    desconectar(indice);
+    return;
+  }
+  const char* tipo = mensaje["tipo"] | "";
 
   if (!monitor.saludo) {
     // El primer mensaje debe ser "hola"
-    if (texto.indexOf("\"tipo\":\"hola\"") < 0) {
-      desconectar(monitor);
-      return;
-    }
-    monitor.saludo = true;
-    Serial.println("Monitor conectado con el PIN correcto.");
-    enviar(monitor, "{\"tipo\":\"bienvenida\",\"nombre\":\"" + String(NOMBRE_NODO) +
-                    "\",\"actuadores\":" + jsonActuadores() + "}");
-    if (ultimaLectura.length() > 0) {
-      enviar(monitor, "{\"tipo\":\"lectura\",\"lectura\":" + ultimaLectura + "}");
-    }
+    if (strcmp(tipo, "hola") == 0) saludar(indice, mensaje);
+    else desconectar(indice);
     return;
   }
 
-  if (texto.indexOf("\"tipo\":\"comando\"") >= 0) {
-    // La app omite los valores en false, por eso solo se busca ":true"
-    ventilador = texto.indexOf("\"fan\":true") >= 0;
-    lampara = texto.indexOf("\"lamp\":true") >= 0;
-    pausado = texto.indexOf("\"paused\":true") >= 0;
+  // Anti-replay: la sesion debe ser la de esta conexion y el contador siempre debe subir.
+  const char* sesion = mensaje["sesion"] | "";
+  uint32_t n = mensaje["n"] | 0;
+  if (monitor.sesion != sesion || n <= monitor.ultimoRecibido) {
+    Serial.println("Mensaje rechazado: repetido o de otra sesion.");
+    return;
+  }
+  monitor.ultimoRecibido = n;
+
+  if (strcmp(tipo, "comando") == 0) {
+    // La app omite los valores en false
+    JsonObject a = mensaje["actuadores"];
+    ventilador = a["fan"] | false;
+    lampara = a["lamp"] | false;
+    pausado = a["paused"] | false;
+    ahorro = a["eco"] | false;
     aplicarActuadores();
-    Serial.println("Comando recibido: " + jsonActuadores());
-    enviarATodos("{\"tipo\":\"estado\",\"actuadores\":" + jsonActuadores() + "}");
+    Serial.printf("Comando recibido: ventilador=%d lampara=%d pausa=%d ahorro=%d\n", ventilador, lampara, pausado, ahorro);
+    enviarEstadoATodos();
+  } else if (strcmp(tipo, "recibido") == 0) {
+    confirmarHistorial(indice, mensaje["cantidad"] | 0);
   }
 }
 
-void leerMonitor(Monitor& monitor) {
+void leerMonitor(int indice) {
+  Monitor& monitor = monitores[indice];
   if (!monitor.cliente.connected()) {
     if (monitor.saludo) Serial.println("Un monitor se desconecto.");
     monitor.saludo = false;
+    if (monitorHistorial == indice) monitorHistorial = -1;
     return;
   }
 
   // Si no manda "hola" en 10 segundos se corta la conexion
   if (!monitor.saludo && millis() - monitor.conectadoEn > 10000) {
-    desconectar(monitor);
+    desconectar(indice);
     return;
   }
 
   while (monitor.cliente.available()) {
     char letra = monitor.cliente.read();
     if (letra == '\n') {
-      procesarLinea(monitor);
+      procesarLinea(indice);
       monitor.linea = "";
       if (!monitor.cliente.connected()) return;
     } else if (letra != '\r') {
       monitor.linea += letra;
       if (monitor.linea.length() > 2000) {  // mensaje demasiado largo
-        desconectar(monitor);
+        desconectar(indice);
         return;
       }
+    }
+  }
+
+  // Latido: si no se mando nada en un rato (pausa o falla del DHT11), la app sabe que el nodo sigue vivo.
+  if (monitor.saludo && millis() - monitor.ultimoEnvio >= INTERVALO_PULSO) {
+    JsonDocument pulso;
+    pulso["tipo"] = "pulso";
+    enviar(monitor, pulso);
+  }
+}
+
+// ===================== WiFi =====================
+
+void anunciarEnRed() {
+  MDNS.end();
+  if (MDNS.begin("climapulse")) {
+    MDNS.setInstanceName(NOMBRE_NODO);
+    MDNS.addService("climapulse", "tcp", PUERTO);
+  }
+  Serial.println("Listo. Datos para la app (modo Monitor):");
+  Serial.println("  IP:  " + WiFi.localIP().toString());
+  Serial.println("  PIN: " + String(PIN_ENLACE));
+}
+
+// Revisa el WiFi sin bloquear: si se corta, reintenta cada 10 s y sigue midiendo y guardando.
+void revisarWifi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!wifiListo) {
+      wifiListo = true;
+      anunciarEnRed();
+    }
+    // Senal debil: se avisa una vez y se vuelve a avisar solo si se recupero antes.
+    int senal = WiFi.RSSI();
+    if (senal < SENAL_DEBIL && !avisoSenal) {
+      avisoSenal = true;
+      avisarATodos("wifi_debil", "La señal WiFi del sensor es débil (" + String(senal) + " dBm). Acércalo al router.");
+    } else if (senal > SENAL_DEBIL + 5) {
+      avisoSenal = false;
+    }
+    return;
+  }
+  if (wifiListo) {
+    wifiListo = false;
+    Serial.println("Se perdio el WiFi. Las lecturas se guardan hasta que vuelva.");
+  }
+  if (millis() - ultimoIntentoWifi >= INTERVALO_WIFI) {
+    ultimoIntentoWifi = millis();
+    Serial.println("Reintentando WiFi...");
+    WiFi.reconnect();
+  }
+}
+
+// ===================== Monitor serie =====================
+
+void mostrarEstado() {
+  Serial.printf("WiFi: %s | IP: %s | Senal: %d dBm\n", wifiListo ? "conectado" : "sin conexion",
+                WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  Serial.printf("Monitores: %d | Guardadas: %d | Ventilador: %d | Lampara: %d | Pausa: %d | Ahorro: %d\n",
+                monitoresActivos(), totalGuardadas, ventilador, lampara, pausado, ahorro);
+}
+
+// Comandos escritos en el monitor serie (115200 baudios), por ejemplo "ventilador on".
+void procesarSerie(String linea) {
+  linea.trim();
+  linea.toLowerCase();
+  if (linea.length() == 0) return;
+  bool encender = linea.endsWith(" on");
+  bool apagar = linea.endsWith(" off");
+
+  if (linea.startsWith("ventilador") && (encender || apagar)) ventilador = encender;
+  else if (linea.startsWith("lampara") && (encender || apagar)) lampara = encender;
+  else if (linea.startsWith("pausa") && (encender || apagar)) pausado = encender;
+  else if (linea.startsWith("ahorro") && (encender || apagar)) ahorro = encender;
+  else if (linea == "estado") {
+    mostrarEstado();
+    return;
+  } else {
+    Serial.println("Comandos: ventilador on|off, lampara on|off, pausa on|off, ahorro on|off, estado");
+    return;
+  }
+  aplicarActuadores();
+  Serial.println("Listo.");
+  enviarEstadoATodos();  // la app ve el cambio al tiro
+}
+
+void leerSerie() {
+  while (Serial.available()) {
+    char letra = Serial.read();
+    if (letra == '\n' || letra == '\r') {
+      if (entradaSerie.length() > 0) procesarSerie(entradaSerie);
+      entradaSerie = "";
+    } else if (entradaSerie.length() < 60) {
+      entradaSerie += letra;
     }
   }
 }
@@ -311,50 +623,48 @@ void setup() {
 
   pinMode(PIN_VENTILADOR, OUTPUT);
   pinMode(PIN_LAMPARA, OUTPUT);
-  aplicarActuadores();
   dht.begin();
 
   Serial.println("Creando la llave a partir del PIN...");
   crearLlave();
 
   WiFi.mode(WIFI_STA);
-  WiFi.setSleepMode(WIFI_NONE_SLEEP);  // sin ahorro de energia: la conexion responde mas rapido
+  WiFi.persistent(false);
+  WiFi.setAutoReconnect(true);
+  aplicarActuadores();
   WiFi.begin(WIFI_NOMBRE, WIFI_CLAVE);
   Serial.print("Conectando a ");
   Serial.print(WIFI_NOMBRE);
-  while (WiFi.status() != WL_CONNECTED) {
+  // Se espera hasta 20 s; si no hay WiFi el nodo igual mide y guarda, y sigue reintentando.
+  unsigned long inicio = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - inicio < 20000) {
     delay(500);
     Serial.print(".");
   }
   Serial.println();
 
   servidor.begin();
-
-  // Se anuncia en la red para que la app lo encuentre sola
-  if (MDNS.begin("climapulse")) {
-    MDNS.setInstanceName(NOMBRE_NODO);
-    MDNS.addService("climapulse", "tcp", PUERTO);
-  }
-
-  Serial.println("Listo. Datos para la app (modo Monitor):");
-  Serial.println("  IP:  " + WiFi.localIP().toString());
-  Serial.println("  PIN: " + String(PIN_ENLACE));
+  revisarWifi();
+  Serial.println("Escribe \"ayuda\" para ver los comandos del monitor serie.");
 }
 
 void loop() {
-  MDNS.update();
+  revisarWifi();
+  if (wifiListo) MDNS.update();
+  leerSerie();
   aceptarMonitores();
-  for (int i = 0; i < MAX_MONITORES; i++) leerMonitor(monitores[i]);
+  for (int i = 0; i < MAX_MONITORES; i++) leerMonitor(i);
 
-  if (millis() - ultimoEnvio >= INTERVALO_ENVIO) {
+  unsigned long intervalo = ahorro ? INTERVALO_AHORRO : INTERVALO_ENVIO;
+  if (millis() - ultimoEnvio >= intervalo) {
     ultimoEnvio = millis();
-    if (!pausado) enviarLectura();
+    if (!pausado) medir();
   }
 
   // Muestra la IP otra vez cada 30 segundos por si abriste el monitor tarde
   static unsigned long ultimoAviso = 0;
   if (millis() - ultimoAviso >= 30000) {
     ultimoAviso = millis();
-    Serial.println("IP: " + WiFi.localIP().toString() + " | PIN: " + String(PIN_ENLACE));
+    if (wifiListo) Serial.println("IP: " + WiFi.localIP().toString() + " | PIN: " + String(PIN_ENLACE));
   }
 }
