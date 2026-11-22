@@ -1,5 +1,10 @@
 package cl.osvaldouhart.climapulse.ui.components
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi
@@ -9,7 +14,9 @@ import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -109,11 +117,37 @@ private fun LoopingIllustration(@DrawableRes resource: Int, cycleMillis: Long, m
     Image(rememberAnimatedVectorPainter(image, atEnd), contentDescription = null, modifier = modifier)
 }
 
-// Respeta la opción de Android "Quitar animaciones" (accesibilidad o ajustes de desarrollador).
+// Respeta la opción de Android "Quitar animaciones" (accesibilidad o ajustes de desarrollador)
+// y el ahorro de batería: con el ahorro activo las animaciones que se repiten se detienen,
+// porque redibujar la pantalla sin parar gasta batería.
 @Composable
 fun animationsEnabled(): Boolean {
-    val resolver = LocalContext.current.contentResolver
-    return remember(resolver) {
-        Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+    val context = LocalContext.current
+    val powerSave by powerSaveMode(context)
+    val scaleOn = remember(context) {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
     }
+    return scaleOn && !powerSave
+}
+
+// Sigue el modo ahorro de batería de Android mientras la pantalla está abierta.
+@Composable
+private fun powerSaveMode(context: Context): State<Boolean> {
+    val powerManager = remember(context) { context.getSystemService(Context.POWER_SERVICE) as PowerManager }
+    val state = remember(powerManager) { mutableStateOf(powerManager.isPowerSaveMode) }
+    DisposableEffect(powerManager) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                state.value = powerManager.isPowerSaveMode
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        onDispose { context.unregisterReceiver(receiver) }
+    }
+    return state
 }
