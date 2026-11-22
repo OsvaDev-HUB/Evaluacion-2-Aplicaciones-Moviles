@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -59,7 +60,16 @@ import cl.osvaldouhart.climapulse.ui.theme.BrandYellow
  * "pulse" cambia cada vez que llega una lectura real.
  */
 @Composable
-fun LinkLine(state: LinkState, modifier: Modifier = Modifier, searching: Boolean = false, pulse: Int = 0) {
+fun LinkLine(
+    state: LinkState,
+    modifier: Modifier = Modifier,
+    searching: Boolean = false,
+    pulse: Int = 0,
+    // Colores del fondo donde se dibuja: las estaciones activas usan el color de contraste
+    // para que se vean igual en tema claro y oscuro.
+    container: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    content: Color = MaterialTheme.colorScheme.onSurface
+) {
     val sensorName = when (state.role) {
         LinkRole.MONITOR -> state.peerName.ifEmpty { "Nodo sensor" }
         LinkRole.NONE -> "Nodo sensor"
@@ -96,11 +106,14 @@ fun LinkLine(state: LinkState, modifier: Modifier = Modifier, searching: Boolean
             Icons.Rounded.Sensors,
             sensorName,
             active = state.role != LinkRole.NONE,
+            container = container,
+            content = content,
             waves = looking && animate,
             modifier = Modifier.width(104.dp)
         )
         Track(
             active = dataFlowing,
+            content = content,
             looking = looking && animate,
             travel = { travel.value },
             modifier = Modifier.weight(1f).padding(top = 18.dp)
@@ -109,6 +122,8 @@ fun LinkLine(state: LinkState, modifier: Modifier = Modifier, searching: Boolean
             Icons.Rounded.PhoneAndroid,
             monitorName,
             active = dataFlowing,
+            container = container,
+            content = content,
             popKey = arrivals,
             modifier = Modifier.width(104.dp)
         )
@@ -120,6 +135,8 @@ private fun Station(
     icon: ImageVector,
     label: String,
     active: Boolean,
+    container: Color,
+    content: Color,
     modifier: Modifier = Modifier,
     waves: Boolean = false,
     popKey: Int = 0
@@ -164,15 +181,15 @@ private fun Station(
                     scaleY = pop.value
                 }
                 .clip(CircleShape)
-                .background(if (active) colors.primary else colors.surfaceContainerHighest),
+                .background(if (active) content else colors.surfaceContainerHighest),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = if (active) colors.onPrimary else colors.onSurfaceVariant, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = if (active) container else colors.onSurfaceVariant, modifier = Modifier.size(22.dp))
         }
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (active) colors.onSurface else colors.onSurfaceVariant,
+            color = if (active) content else content.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -181,8 +198,8 @@ private fun Station(
 }
 
 @Composable
-private fun Track(active: Boolean, looking: Boolean, travel: () -> Float, modifier: Modifier = Modifier) {
-    val lineColor = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+private fun Track(active: Boolean, content: Color, looking: Boolean, travel: () -> Float, modifier: Modifier = Modifier) {
+    val lineColor = if (active) content else MaterialTheme.colorScheme.outline
     val dotColor = BrandYellow
     // Mientras se busca, la línea punteada "avanza" hacia el teléfono.
     val dashShift = if (looking) {

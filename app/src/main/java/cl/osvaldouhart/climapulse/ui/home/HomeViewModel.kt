@@ -113,6 +113,10 @@ class HomeViewModel(
                 if (current is UiState.Success) readingState.value = current.copy(fromCache = true)
             }
         }
+        // Avisos del nodo sensor (falla del DHT11, lecturas recuperadas...) como mensaje en pantalla.
+        viewModelScope.launch {
+            link.notices.collect { _messages.send(it) }
+        }
         // Lecturas en tiempo real del enlace WiFi (cada 3 segundos).
         viewModelScope.launch {
             environment.liveReadings.collect { reading ->

@@ -12,7 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.EnergySavingsLeaf
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.Router
@@ -113,11 +117,38 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
             }
         }
 
+        // Aviso que mandó el nodo por su cuenta (falla del DHT11, señal débil, memoria llena).
+        state.notice?.takeIf { it.problem && state.connected }?.let { notice ->
+            ClimaCard(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+            ) {
+                ListItem(
+                    headlineContent = { Text("Aviso del sensor") },
+                    supportingContent = { Text(notice.message) },
+                    leadingContent = { Icon(Icons.Rounded.WarningAmber, contentDescription = null) },
+                    colors = ListItemDefaults.colors(
+                        containerColor = Color.Transparent,
+                        headlineColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        supportingColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        leadingIconColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                )
+            }
+        }
+
         when {
             state.role == LinkRole.MONITOR && state.connected -> {
                 ClimaCard {
                     InfoRow(Icons.Rounded.Router, "Conectado a", state.peerName)
                     InfoRow(Icons.Rounded.Wifi, "Dirección", state.address)
+                    if (state.recovered > 0) {
+                        InfoRow(
+                            Icons.Rounded.CloudDownload,
+                            "Lecturas recuperadas",
+                            "${state.recovered} lecturas que el sensor guardó sin conexión ya están en tu historial"
+                        )
+                    }
                 }
                 SectionHeading(title = "Control remoto")
                 ActuatorControls(state.actuators, onChange = viewModel::updateActuators)
@@ -144,6 +175,12 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
                 Icons.Rounded.Lock,
                 "Mensajes cifrados (AES-GCM)",
                 "La llave se crea a partir del PIN del ESP8266. Sin el PIN no se pueden leer las lecturas ni controlar el sensor."
+            )
+            InfoRow(
+                Icons.Rounded.VerifiedUser,
+                "Protección contra repetición",
+                "Cada conexión tiene una sesión nueva y cada mensaje un contador que siempre sube. Un mensaje grabado y reenviado se descarta." +
+                    if (state.rejected > 0) " Descartados en esta conexión: ${state.rejected}." else ""
             )
         }
 
@@ -184,7 +221,8 @@ private fun LinkHero(state: LinkState, searching: Boolean, pulse: Int) {
         else -> "Sin enlace"
     }
     val description = when {
-        state.role == LinkRole.MONITOR && state.connected -> "Ves las lecturas del DHT11 y del LDR cada 3 segundos y puedes controlar el sensor."
+        state.role == LinkRole.MONITOR && state.connected ->
+            "Ves las lecturas del DHT11 y del LDR cada ${if (state.actuators.eco) 10 else 3} segundos y puedes controlar el sensor."
         else -> "El teléfono y el ESP8266 deben estar en la misma red WiFi."
     }
     val container = if (state.isActive) colors.primaryContainer else colors.surfaceContainerLow
@@ -198,7 +236,7 @@ private fun LinkHero(state: LinkState, searching: Boolean, pulse: Int) {
             .padding(horizontal = 16.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        LinkLine(state, modifier = Modifier.fillMaxWidth(), searching = searching, pulse = pulse)
+        LinkLine(state, modifier = Modifier.fillMaxWidth(), searching = searching, pulse = pulse, container = container, content = content)
         Spacer(Modifier.height(20.dp))
         Text(title, style = MaterialTheme.typography.headlineSmall, color = content)
         Spacer(Modifier.height(4.dp))
@@ -295,6 +333,15 @@ private fun ActuatorControls(actuators: Actuators, onChange: (Actuators) -> Unit
             onCheckedChange = { onChange(actuators.copy(paused = it)) }
         ) {
             IconBadge(icon = Icons.Rounded.PauseCircle, size = 40.dp)
+        }
+        HorizontalDivider(color = colors.outlineVariant)
+        SwitchRow(
+            title = "Modo ahorro",
+            subtitle = "Mide cada 10 s y la radio WiFi duerme entre mensajes",
+            checked = actuators.eco,
+            onCheckedChange = { onChange(actuators.copy(eco = it)) }
+        ) {
+            IconBadge(icon = Icons.Rounded.EnergySavingsLeaf, size = 40.dp)
         }
     }
 }
