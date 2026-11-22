@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 //
 // Así, un mensaje grabado y reenviado después (ataque de repetición) se rechaza:
 // o es de otra sesión, o su contador ya se usó. AES-GCM (LinkCrypto) cubre que nadie
-// sin el PIN pueda leer o cambiar el contenido.
+// sin la clave del sensor pueda leer o cambiar el contenido.
 
 /** Mensaje que viaja entre la app y el nodo sensor (JSON cifrado, uno por línea). */
 @Serializable

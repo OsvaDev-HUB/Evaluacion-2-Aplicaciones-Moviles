@@ -58,7 +58,7 @@ data class FoundSensor(val name: String, val host: String, val port: Int)
 
 /**
  * Conexión WiFi con el nodo sensor ESP8266 (sketch "sensores/sensores.ino"):
- * busca el sensor en la red, se conecta con el PIN, recibe lecturas reales
+ * busca el sensor en la red, se conecta con la clave, recibe lecturas reales
  * del DHT11 y del LDR cada 3 segundos y controla los actuadores.
  * Las reglas del protocolo (reto, sesión y contador anti-repetición) están en LinkSession.
  */
@@ -136,11 +136,11 @@ class WifiLink(
                 if (!isActive || _state.value.role != LinkRole.MONITOR) break
 
                 if (!linked) {
-                    // Nunca se pudo conectar: probablemente la IP o el PIN están mal.
+                    // Nunca se pudo conectar: probablemente la IP o la clave están mal.
                     _state.value = _state.value.copy(
                         connected = false,
                         connecting = false,
-                        error = "No se pudo conectar. Revisa la IP, el PIN y que el sensor esté en la misma red WiFi."
+                        error = "No se pudo conectar. Revisa la IP, la clave y que el sensor esté en la misma red WiFi."
                     )
                     break
                 }
@@ -165,7 +165,7 @@ class WifiLink(
 
             peer.sendRaw(linkSession.hello(deviceName))
             socket.soTimeout = 5_000
-            val welcome = peer.read() ?: throw IOException("PIN incorrecto")
+            val welcome = peer.read() ?: throw IOException("Clave incorrecta")
             // La bienvenida debe traer nuestro reto; si no, puede ser una respuesta grabada.
             if (!linkSession.acceptWelcome(welcome)) throw IOException("Bienvenida inválida")
             sensorPeer = peer
@@ -331,7 +331,7 @@ class WifiLink(
     private inner class Peer(private val socket: Socket, private val linkSession: LinkSession) {
         private val reader: BufferedReader = socket.getInputStream().bufferedReader()
         private val writer: BufferedWriter = socket.getOutputStream().bufferedWriter()
-        private val cipher = crypto ?: throw IllegalStateException("sin PIN")
+        private val cipher = crypto ?: throw IllegalStateException("sin clave")
 
         /** Envía un mensaje de la sesión: se le agrega la sesión y el contador. */
         fun send(message: LinkMessage) = synchronized(writer) { write(linkSession.stamp(message)) }

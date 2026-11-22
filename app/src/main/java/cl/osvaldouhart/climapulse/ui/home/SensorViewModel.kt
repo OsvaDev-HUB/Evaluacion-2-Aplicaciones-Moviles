@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import cl.osvaldouhart.climapulse.data.Actuators
 import cl.osvaldouhart.climapulse.data.EnvironmentReading
 import cl.osvaldouhart.climapulse.data.FoundSensor
+import cl.osvaldouhart.climapulse.data.LinkCrypto
 import cl.osvaldouhart.climapulse.data.LinkState
 import cl.osvaldouhart.climapulse.data.WifiLink
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
@@ -44,8 +45,7 @@ class SensorViewModel(private val link: WifiLink) : ViewModel() {
         val cleanHost = host.trim()
         formError = when {
             cleanHost.isEmpty() -> "Ingresa la IP del nodo sensor o elige uno de la lista."
-            pin.length != 6 -> "El PIN tiene 6 dígitos y está en config.h del sensor."
-            else -> null
+            else -> LinkCrypto.keyProblem(pin)?.let { "$it Está en config.h del ESP8266." }
         }
         if (formError != null) return
         link.stopDiscovery()

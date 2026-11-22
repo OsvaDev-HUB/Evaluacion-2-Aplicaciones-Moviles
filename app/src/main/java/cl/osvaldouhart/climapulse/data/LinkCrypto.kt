@@ -10,8 +10,8 @@ import javax.crypto.spec.SecretKeySpec
 
 /**
  * Cifra los mensajes del enlace WiFi con AES-GCM.
- * La llave sale del PIN de 6 dígitos que muestra el nodo sensor: solo quien conoce
- * el PIN puede leer o enviar mensajes. GCM además detecta si un mensaje fue alterado.
+ * La llave sale de la clave del sensor (config.h del ESP8266): solo quien la conoce
+ * puede leer o enviar mensajes. GCM además detecta si un mensaje fue alterado.
  */
 class LinkCrypto(pin: String) {
     private val key: SecretKeySpec
@@ -32,7 +32,7 @@ class LinkCrypto(pin: String) {
         return Base64.getEncoder().encodeToString(iv + encrypted)
     }
 
-    /** Lanza una excepción si el PIN no coincide o el mensaje fue modificado. */
+    /** Lanza una excepción si la clave no coincide o el mensaje fue modificado. */
     fun decrypt(line: String): String {
         // El decodificador MIME ignora saltos de línea o espacios que puedan venir del ESP8266.
         val bytes = Base64.getMimeDecoder().decode(line)
@@ -43,7 +43,26 @@ class LinkCrypto(pin: String) {
         return String(cipher.doFinal(encrypted), Charsets.UTF_8)
     }
 
-    private companion object {
-        val SALT = "climapulse-enlace-wifi".toByteArray()
+    companion object {
+        private val SALT = "climapulse-enlace-wifi".toByteArray()
+        const val MIN_KEY_LENGTH = 10
+        const val MAX_KEY_LENGTH = 32
+
+        /**
+         * Devuelve qué le falta a la clave, o null si sirve.
+         * Con 6 dígitos hay solo un millón de opciones: alguien que grabe el tráfico las prueba
+         * todas en segundos. Con 10 caracteres entre letras y números son más de 10^17.
+         * El ESP8266 aplica la misma regla al compilar (sensores.ino).
+         */
+        fun keyProblem(key: String): String? = when {
+            key.length < MIN_KEY_LENGTH -> "La clave del sensor tiene al menos $MIN_KEY_LENGTH caracteres."
+            key.length > MAX_KEY_LENGTH -> "La clave del sensor tiene como máximo $MAX_KEY_LENGTH caracteres."
+            key.any { it.isWhitespace() } -> "La clave del sensor no lleva espacios."
+            // Solo ASCII: así la clave se convierte en los mismos bytes en Android y en el ESP8266.
+            key.any { it.code !in 33..126 } -> "La clave del sensor usa letras sin tilde ni ñ, números y símbolos."
+            key.none { it in 'a'..'z' || it in 'A'..'Z' } || key.none { it in '0'..'9' } ->
+                "La clave del sensor mezcla letras y números."
+            else -> null
+        }
     }
 }

@@ -32,7 +32,7 @@ Dónde está cada indicador. El enlace es por WiFi (sockets TCP), que el profeso
 
 | Código | Indicador | Dónde se cumple |
 |---|---|---|
-| 3.1.1.1 | Envío de información seguro | AES-256-GCM con llave PBKDF2 del PIN, reto + sesión + contador contra mensajes repetidos (`data/LinkCrypto.kt`, `data/LinkSession.kt`, `sensores/sensores.ino`). Ver [Protocolo](#protocolo-del-enlace-versión-2) y [Seguridad](#seguridad-isoiec-27400) |
+| 3.1.1.1 | Envío de información seguro | AES-256-GCM con llave PBKDF2 de la clave del sensor (10 a 32 caracteres, revisada en la app y al compilar), reto + sesión + contador contra mensajes repetidos (`data/LinkCrypto.kt`, `data/LinkSession.kt`, `sensores/sensores.ino`). Ver [Protocolo](#protocolo-del-enlace-versión-2) y [Seguridad](#seguridad-isoiec-27400) |
 | 3.1.1.2 | Integridad de los datos | La etiqueta GCM detecta cualquier cambio; el ESP8266 revisa el JSON con ArduinoJson; la app descarta valores imposibles (`ReadingRules`) y Firestore vuelve a validar tipo y rango (`firestore.rules`) |
 | 3.1.1.3 | Reconexión automática | App: reintenta a los 2, 4, 8, 16 y 30 s, y al instante cuando vuelve la red (`data/WifiLink.kt`). ESP8266: revisa su WiFi en cada vuelta y reintenta cada 10 s (`revisarWifi()`) |
 | 3.1.1.4 | Almacenamiento temporal en el teléfono y en el microcontrolador | ESP8266: guarda hasta 240 lecturas (1 hora) sin teléfono y las entrega al reconectar. Teléfono: caché de Firestore + última lectura en DataStore. Ver [Plan de contingencia](#plan-de-contingencia-y-continuidad) |
@@ -58,8 +58,8 @@ Se eligió **WiFi local** en lugar de Bluetooth o MQTT:
 
 Cómo funciona (`sensores/sensores.ino` y `data/WifiLink.kt`):
 
-1. El **ESP8266** se conecta al WiFi, abre el puerto `5050` y se anuncia en la red con mDNS (`_climapulse._tcp`). Su IP y su **PIN de 6 dígitos** aparecen en el monitor serie.
-2. La **app** busca el sensor en la red (o se escribe la IP a mano) e ingresa el PIN.
+1. El **ESP8266** se conecta al WiFi, abre el puerto `5050` y se anuncia en la red con mDNS (`_climapulse._tcp`). Su IP aparece en el monitor serie; la **clave del enlace** es la que se puso en `config.h`.
+2. La **app** busca el sensor en la red (o se escribe la IP a mano) e ingresa la clave del enlace.
 3. El sensor envía una lectura cada 3 segundos (cada 10 en modo ahorro). La app la muestra en tiempo real y guarda una cada 15 segundos en Firestore.
 4. La app puede encender el **ventilador** (LED D0), la **lámpara** (LED D4), **pausar** el envío o activar el **modo ahorro**. En esos pines irían los relés de un ventilador o una lámpara reales.
 5. Si se corta la conexión, la app se reconecta sola: espera 2, 4, 8, 16 y luego 30 segundos entre intentos, y reintenta al instante cuando el teléfono recupera la red.
@@ -98,10 +98,10 @@ Cada línea es `Base64(IV de 12 bytes + JSON cifrado + etiqueta GCM de 16 bytes)
 
 Para cargar el programa:
 
-1. Copia `sensores/config.example.h` como `sensores/config.h` y escribe el nombre y la clave del WiFi (2.4 GHz) y el PIN. Este archivo no se sube a git.
+1. Copia `sensores/config.example.h` como `sensores/config.h` y escribe el nombre y la clave del WiFi (2.4 GHz) y la **clave del enlace** (`CLAVE_ENLACE`). Este archivo no se sube a git.
 2. Instala las librerías: `arduino-cli lib install "DHT sensor library" ArduinoJson@7.2.1`
 3. Compila y sube: `arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 -u -p /dev/ttyUSB0 sensores`
-4. Abre el monitor serie a 115200 baudios para ver la IP, el PIN y las lecturas.
+4. Abre el monitor serie a 115200 baudios para ver la IP y las lecturas. La clave solo se muestra al escribir `estado`, para que no quede a la vista.
 
 En el monitor serie también se pueden escribir comandos: `ventilador on|off`, `lampara on|off`, `pausa on|off`, `ahorro on|off` y `estado`. Los cambios le llegan a la app al tiro.
 
@@ -131,11 +131,12 @@ Todo esto está en `data/SessionRepository.kt`.
 | **Reglas de Firestore**: cada usuario solo ve y cambia sus datos; se valida el tipo, el rango y el largo de cada campo; las lecturas no se pueden editar; todo lo demás está cerrado | `firestore.rules` |
 | **App Check** (Play Integrity en release) para que Firebase reconozca la app original | `ClimaPulseApplication.kt`, `src/debug` y `src/release` |
 | Huella con **CryptoObject**: una llave AES del Keystore que solo se libera con una huella fuerte. Si se agrega una huella nueva en Android, la llave se invalida | `data/BiometricKey.kt`, `ui/auth/Biometric.kt` |
-| Enlace WiFi cifrado con **AES-GCM**; la llave sale del PIN (PBKDF2). Sin el PIN no se pueden leer ni enviar comandos | `data/LinkCrypto.kt`, `sensores/sensores.ino` |
+| Enlace WiFi cifrado con **AES-GCM**; la llave sale de la clave del sensor (PBKDF2). Sin la clave no se pueden leer ni enviar comandos | `data/LinkCrypto.kt`, `sensores/sensores.ino` |
+| **Clave del enlace robusta**: 10 a 32 caracteres con letras y números. Con un PIN de 6 dígitos hay un millón de opciones y quien grabe el tráfico las prueba todas en segundos; con 10 caracteres son más de 10^17. Si la clave no cumple, el sketch no compila y la app no deja conectar | `sensores/clave.h`, `LinkCrypto.keyProblem` |
 | **Anti-replay** en el enlace: reto en el saludo, sesión nueva por conexión y contador que siempre sube. Un comando grabado y reenviado se descarta; la pantalla Sensor muestra cuántos se descartaron | `data/LinkSession.kt`, `sensores/sensores.ino` |
 | **Validación de lecturas**: la app descarta valores imposibles para el DHT11 y el LDR antes de mostrarlos o guardarlos | `ReadingRules` en `data/LinkSession.kt` |
 | Build release con **R8** (código ofuscado) y firmado; la clave de firma y sus contraseñas no se suben a git | `app/build.gradle.kts`, `keystore.properties` en `.gitignore` |
-| La clave del WiFi, el PIN del sensor y `google-services.json` no se suben a git | `.gitignore` |
+| La clave del WiFi, la clave del enlace y `google-services.json` no se suben a git | `.gitignore` |
 | Respaldo automático desactivado (`allowBackup="false"`) | `AndroidManifest.xml` |
 
 ### Relación con las normas ISO
@@ -145,7 +146,7 @@ ISO/IEC 27400 (seguridad y privacidad en IoT) pide proteger la comunicación ent
 | Control | Cómo se aplica en ClimaPulse |
 |---|---|
 | 8.24 Uso de criptografía | AES-256-GCM en el enlace WiFi, PBKDF2 para la llave, TLS hacia Firebase, llave de la huella en el Keystore |
-| 8.20 Seguridad de redes | El enlace solo funciona en la red local, con PIN, máximo 3 monitores y corte si no saludan en 10 s |
+| 8.20 Seguridad de redes | El enlace solo funciona en la red local, con una clave robusta, máximo 3 monitores y corte si no saludan en 10 s |
 | 8.5 Autenticación segura | Firebase Authentication, correo verificado, reautenticación para acciones delicadas, huella con CryptoObject |
 | 5.15 y 8.3 Control de acceso | Reglas de Firestore: cada usuario solo ve sus datos; todo lo demás cerrado |
 | 8.26 Requisitos de seguridad de la aplicación | Anti-replay, validación de rangos en la app y en Firestore, mensajes de largo máximo |
@@ -207,8 +208,8 @@ Lo que se hizo para gastar menos:
 | El DHT11 deja de responder | 3 lecturas seguidas fallidas | El nodo avisa a la app (tarjeta y mensaje) y sigue mandando latidos; avisa de nuevo cuando vuelve | Revisar el cable D1 y la alimentación |
 | Señal WiFi débil | RSSI bajo -80 dBm | El nodo avisa a la app | Acercar el nodo al router |
 | Se llena la memoria del nodo | Más de 240 lecturas guardadas | Se pierden las más antiguas y el nodo avisa cuántas al reconectar | Conectar un teléfono más seguido |
-| PIN o IP incorrectos | La bienvenida no llega o no se puede descifrar | La app no reintenta y explica qué revisar | Corregir la IP o el PIN |
-| Alguien repite mensajes grabados | Sesión o contador inválido | El mensaje se descarta y se cuenta | Nada; si el número sube mucho, cambiar el PIN |
+| Clave o IP incorrectas | La bienvenida no llega o no se puede descifrar | La app no reintenta y explica qué revisar | Corregir la IP o la clave |
+| Alguien repite mensajes grabados | Sesión o contador inválido | El mensaje se descarta y se cuenta | Nada; si el número sube mucho, cambiar la clave del enlace |
 
 Límites conocidos: la memoria del nodo es RAM, así que si se corta la luz se pierden las lecturas que aún no se entregaron. El teléfono guarda las 200 lecturas más recientes.
 
@@ -222,10 +223,10 @@ Límites conocidos: la memoria del nodo es RAM, así que si se corta la luz se p
 
 ## Cómo probarlo
 
-1. Carga el programa en el ESP8266 (ver **Nodo sensor**) y anota la IP y el PIN del monitor serie.
+1. Carga el programa en el ESP8266 (ver **Nodo sensor**) y anota la IP que muestra el monitor serie.
 2. Conecta el teléfono a la **misma red WiFi** que el ESP8266.
 3. Instala la app y crea una cuenta (Regístrate y abre el enlace del correo) o usa **Continuar con Google**.
-4. Pestaña **Sensor** → **Buscar sensor**. Elige "ClimaPulse ESP8266" de la lista (o escribe la IP), ingresa el PIN y toca **Conectar**.
+4. Pestaña **Sensor** → **Buscar sensor**. Elige "ClimaPulse ESP8266" de la lista (o escribe la IP), ingresa la clave del enlace y toca **Conectar**.
 5. La pestaña **Inicio** muestra las lecturas reales. Tapa el LDR o sopla el DHT11 y mira cómo cambian los valores.
 
 Nota: algunas redes WiFi de universidades bloquean la conexión entre equipos o piden iniciar sesión en una página. En ese caso usa el punto de acceso (hotspot) de un teléfono en 2.4 GHz.
@@ -237,7 +238,7 @@ En un emulador la búsqueda automática no funciona: escribe la IP del sensor a 
 `sensores/simulador.mjs` habla el mismo protocolo que el ESP8266 (necesita Node.js, sin otras dependencias):
 
 ```
-node sensores/simulador.mjs          # PIN 123456, puerto 5050
+node sensores/simulador.mjs          # clave cambia-esta-clave-2026, puerto 5050
 ```
 
 En el emulador de Android la IP del PC es `10.0.2.2`. Con teclas se cambia el escenario (`c` calor, `x` todo mal...), se simula una falla del DHT11 (`e`), un reinicio del nodo (`r`) o un **ataque de repetición** (`z`, la app debe descartar el mensaje). Escribe `?` para ver todas.

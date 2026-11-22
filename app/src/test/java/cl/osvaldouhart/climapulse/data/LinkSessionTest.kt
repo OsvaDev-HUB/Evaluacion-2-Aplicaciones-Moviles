@@ -109,3 +109,26 @@ class ReadingRulesTest {
         assertFalse(ReadingRules.isPlausible(StoredReading(22f, 48f, 420f, edad = -1)))
     }
 }
+
+class LinkKeyRulesTest {
+    @Test
+    fun aceptaUnaClaveLargaConLetrasYNumeros() {
+        assertNull(LinkCrypto.keyProblem("cambia-esta-clave-2026"))
+        assertNull(LinkCrypto.keyProblem("Clima2026xy"))
+    }
+
+    @Test
+    fun rechazaElPinCortoDeAntes() {
+        // 6 dígitos son un millón de opciones: se prueban todas en segundos.
+        assertTrue(LinkCrypto.keyProblem("123456") != null)
+    }
+
+    @Test
+    fun rechazaClavesSinMezclaConEspaciosOConTildes() {
+        assertTrue(LinkCrypto.keyProblem("1234567890123") != null)
+        assertTrue(LinkCrypto.keyProblem("solamenteletras") != null)
+        assertTrue(LinkCrypto.keyProblem("clave con 2026") != null)
+        assertTrue(LinkCrypto.keyProblem("contraseña2026") != null)
+        assertTrue(LinkCrypto.keyProblem("a1".repeat(17)) != null)
+    }
+}
