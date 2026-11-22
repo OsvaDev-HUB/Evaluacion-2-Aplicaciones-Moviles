@@ -5,16 +5,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import cl.osvaldouhart.climapulse.data.Actuators
+import cl.osvaldouhart.climapulse.data.EnvironmentReading
 import cl.osvaldouhart.climapulse.data.FoundSensor
 import cl.osvaldouhart.climapulse.data.LinkState
 import cl.osvaldouhart.climapulse.data.WifiLink
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** Maneja la pantalla del enlace WiFi con el nodo sensor ESP8266. */
 class SensorViewModel(private val link: WifiLink) : ViewModel() {
     val state: StateFlow<LinkState> = link.state
     val foundSensors: StateFlow<List<FoundSensor>> = link.foundSensors
+    // Cada lectura que llega; la pantalla la usa para animar el punto del enlace.
+    val readings: SharedFlow<EnvironmentReading> = link.readings
 
     // true mientras el usuario está eligiendo a qué sensor conectarse.
     var choosingMonitor by mutableStateOf(false)

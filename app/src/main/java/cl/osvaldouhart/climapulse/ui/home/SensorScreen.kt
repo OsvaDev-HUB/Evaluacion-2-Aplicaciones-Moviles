@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.Router
@@ -30,7 +28,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,6 +58,9 @@ import androidx.compose.ui.draw.clip
 import cl.osvaldouhart.climapulse.ui.components.ClimaTextField
 import cl.osvaldouhart.climapulse.ui.components.HeroCard
 import cl.osvaldouhart.climapulse.ui.components.IconBadge
+import cl.osvaldouhart.climapulse.ui.components.BulbGlyph
+import cl.osvaldouhart.climapulse.ui.components.FanGlyph
+import cl.osvaldouhart.climapulse.ui.components.GlyphBadge
 import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
 import cl.osvaldouhart.climapulse.ui.components.PulseRings
 import cl.osvaldouhart.climapulse.ui.components.ScreenTitle
@@ -67,11 +72,15 @@ import cl.osvaldouhart.climapulse.ui.components.StatusPill
 import cl.osvaldouhart.climapulse.ui.theme.Dimens
 import cl.osvaldouhart.climapulse.ui.theme.Teal
 import cl.osvaldouhart.climapulse.ui.theme.Yellow
+import cl.osvaldouhart.climapulse.ui.theme.BrandYellow
 
 @Composable
 fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewModel.Factory)) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val found by viewModel.foundSensors.collectAsStateWithLifecycle()
+    // Cuenta las lecturas recibidas mientras la pantalla está abierta.
+    var pulse by remember { mutableIntStateOf(0) }
+    LaunchedEffect(viewModel) { viewModel.readings.collect { pulse++ } }
 
     Column(
         modifier = Modifier
@@ -83,7 +92,12 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
         ScreenTitle(title = "Enlace WiFi", subtitle = "Conecta la app al sensor ESP8266 de tu red WiFi.")
         Spacer(Modifier.height(4.dp))
 
-        LinkHero(state)
+        LinkHero(
+            state,
+            // Busca solo mientras elige sensor; al intentar conectar el estado pasa a "Conectando..."
+            searching = viewModel.choosingMonitor && state.role == LinkRole.NONE,
+            pulse = pulse
+        )
 
         state.error?.let { message ->
             ClimaCard(
@@ -160,11 +174,12 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
 
 /** Cabecera del enlace: la línea sensor → monitor y una frase con el estado. */
 @Composable
-private fun LinkHero(state: LinkState) {
+private fun LinkHero(state: LinkState, searching: Boolean, pulse: Int) {
     val colors = MaterialTheme.colorScheme
     val title = when {
         state.role == LinkRole.MONITOR && state.connected -> "Recibiendo lecturas"
         state.connecting -> "Conectando..."
+        searching -> "Buscando sensor..."
         state.role == LinkRole.MONITOR -> "Sin conexión"
         else -> "Sin enlace"
     }
@@ -183,7 +198,7 @@ private fun LinkHero(state: LinkState) {
             .padding(horizontal = 16.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        LinkLine(state, modifier = Modifier.fillMaxWidth())
+        LinkLine(state, modifier = Modifier.fillMaxWidth(), searching = searching, pulse = pulse)
         Spacer(Modifier.height(20.dp))
         Text(title, style = MaterialTheme.typography.headlineSmall, color = content)
         Spacer(Modifier.height(4.dp))
@@ -249,27 +264,53 @@ private fun MonitorForm(viewModel: SensorViewModel, found: List<FoundSensor>, co
 
 @Composable
 private fun ActuatorControls(actuators: Actuators, onChange: (Actuators) -> Unit) {
+    val colors = MaterialTheme.colorScheme
     ClimaCard {
-        SwitchRow(Icons.Rounded.Air, "Ventilador", "Enciende el LED D0 del sensor", actuators.fan) {
-            onChange(actuators.copy(fan = it))
+        SwitchRow(
+            title = "Ventilador",
+            subtitle = "Enciende el LED D0 del sensor",
+            checked = actuators.fan,
+            onCheckedChange = { onChange(actuators.copy(fan = it)) }
+        ) {
+            GlyphBadge(tint = colors.primary, size = 40.dp) { size ->
+                FanGlyph(on = actuators.fan, tint = colors.primary, size = size)
+            }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        SwitchRow(Icons.Rounded.Lightbulb, "Lámpara", "Enciende el LED D4 del sensor", actuators.lamp) {
-            onChange(actuators.copy(lamp = it))
+        HorizontalDivider(color = colors.outlineVariant)
+        SwitchRow(
+            title = "Lámpara",
+            subtitle = "Enciende el LED D4 del sensor",
+            checked = actuators.lamp,
+            onCheckedChange = { onChange(actuators.copy(lamp = it)) }
+        ) {
+            GlyphBadge(tint = colors.primary, size = 40.dp) { size ->
+                BulbGlyph(on = actuators.lamp, tint = colors.primary, glow = BrandYellow, size = size)
+            }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        SwitchRow(Icons.Rounded.PauseCircle, "Pausar envío", "El sensor deja de mandar lecturas", actuators.paused) {
-            onChange(actuators.copy(paused = it))
+        HorizontalDivider(color = colors.outlineVariant)
+        SwitchRow(
+            title = "Pausar envío",
+            subtitle = "El sensor deja de mandar lecturas",
+            checked = actuators.paused,
+            onCheckedChange = { onChange(actuators.copy(paused = it)) }
+        ) {
+            IconBadge(icon = Icons.Rounded.PauseCircle, size = 40.dp)
         }
     }
 }
 
 @Composable
-private fun SwitchRow(icon: ImageVector, title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    leading: @Composable () -> Unit
+) {
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle) },
-        leadingContent = { IconBadge(icon = icon, size = 40.dp) },
+        leadingContent = leading,
         // El Switch no recibe clics propios: toda la fila cambia el valor.
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),

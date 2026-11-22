@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -127,6 +128,19 @@ fun EmptyState(
 ) {
     StateMessage(illustration, title, message, modifier) {
         PrimaryButton(text = actionLabel, onClick = onAction, loading = loading)
+    }
+}
+
+/** Inicio sin nodo sensor: no es un error, es el primer paso. Lleva directo a la pestaña Sensor. */
+@Composable
+fun ConnectSensorState(onOpenLink: () -> Unit, modifier: Modifier = Modifier) {
+    StateMessage(
+        Illustration.SENSOR_SEARCH,
+        "Conecta tu sensor",
+        "Cuando el ESP8266 mande su primera lectura, aquí verás cómo está tu ambiente.",
+        modifier
+    ) {
+        PrimaryButton(text = "Ir a Sensor", onClick = onOpenLink, icon = Icons.Rounded.Sensors)
     }
 }
 

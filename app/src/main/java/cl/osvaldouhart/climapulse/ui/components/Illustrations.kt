@@ -111,7 +111,7 @@ private fun LoopingIllustration(@DrawableRes resource: Int, cycleMillis: Long, m
 
 // Respeta la opción de Android "Quitar animaciones" (accesibilidad o ajustes de desarrollador).
 @Composable
-private fun animationsEnabled(): Boolean {
+fun animationsEnabled(): Boolean {
     val resolver = LocalContext.current.contentResolver
     return remember(resolver) {
         Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
