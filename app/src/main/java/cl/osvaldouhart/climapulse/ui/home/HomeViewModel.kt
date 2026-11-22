@@ -11,6 +11,7 @@ import cl.osvaldouhart.climapulse.data.LinkState
 import cl.osvaldouhart.climapulse.data.Metric
 import cl.osvaldouhart.climapulse.data.SessionRepository
 import cl.osvaldouhart.climapulse.data.WifiLink
+import cl.osvaldouhart.climapulse.data.LinkException
 import cl.osvaldouhart.climapulse.ui.UiState
 import cl.osvaldouhart.climapulse.ui.appViewModelFactory
 import cl.osvaldouhart.climapulse.ui.toUserMessage
@@ -189,7 +190,7 @@ class HomeViewModel(
                     readingState.value = UiState.Success(cached, fromCache = true)
                     if (announce) _messages.send(e.toUserMessage())
                 } else {
-                    readingState.value = UiState.Error(e.toUserMessage())
+                    readingState.value = UiState.Error(e.toUserMessage(), noSensor = e is LinkException)
                 }
             } finally {
                 // Un job cancelado por una recarga más nueva no debe apagar su indicador.

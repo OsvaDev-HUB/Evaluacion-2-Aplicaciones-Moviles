@@ -7,7 +7,8 @@ import cl.osvaldouhart.climapulse.data.OfflineException
 sealed interface UiState<out T> {
     data object Loading : UiState<Nothing>
     data class Success<T>(val data: T, val fromCache: Boolean = false) : UiState<T>
-    data class Error(val message: String) : UiState<Nothing>
+    // noSensor = el error es solo que todavía no hay un nodo sensor conectado.
+    data class Error(val message: String, val noSensor: Boolean = false) : UiState<Nothing>
     data object Empty : UiState<Nothing>
 }
 

@@ -41,10 +41,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BookmarkAdd
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -84,9 +82,12 @@ import cl.osvaldouhart.climapulse.ui.UiState
 import cl.osvaldouhart.climapulse.ui.components.ClimaCard
 import cl.osvaldouhart.climapulse.ui.components.ClimaLogo
 import cl.osvaldouhart.climapulse.ui.components.DashboardSkeleton
+import cl.osvaldouhart.climapulse.ui.components.ConnectSensorState
 import cl.osvaldouhart.climapulse.ui.components.ErrorState
 import cl.osvaldouhart.climapulse.ui.components.HeroCard
-import cl.osvaldouhart.climapulse.ui.components.IconBadge
+import cl.osvaldouhart.climapulse.ui.components.GlyphBadge
+import cl.osvaldouhart.climapulse.ui.components.MetricGlyph
+import cl.osvaldouhart.climapulse.ui.components.StatusGlyph
 import cl.osvaldouhart.climapulse.ui.components.LinearMeter
 import cl.osvaldouhart.climapulse.ui.components.PrimaryButton
 import cl.osvaldouhart.climapulse.ui.components.SectionHeading
@@ -121,7 +122,9 @@ fun DashboardScreen(
     ) { current ->
         when (current) {
             UiState.Loading -> DashboardSkeleton(PaddingValues())
-            is UiState.Error -> ErrorState(
+            is UiState.Error -> if (current.noSensor) {
+                ConnectSensorState(onOpenLink = onOpenLink, modifier = Modifier.fillMaxSize())
+            } else ErrorState(
                 message = current.message,
                 onRetry = viewModel::retry,
                 modifier = Modifier.fillMaxSize()
@@ -331,12 +334,7 @@ private fun StatusHero(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    if (comfortable) Icons.Rounded.CheckCircle else Icons.Rounded.WarningAmber,
-                    contentDescription = null,
-                    tint = content,
-                    modifier = Modifier.size(28.dp)
-                )
+                StatusGlyph(comfortable = comfortable, color = content, cutout = container, size = 30.dp)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     if (comfortable) "Ambiente cómodo" else "Revisa el ambiente",
@@ -391,7 +389,9 @@ private fun MetricPill(
             .padding(start = 8.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconBadge(icon = metric.icon, tint = metric.accent, size = 48.dp)
+        GlyphBadge(tint = metric.accent, size = 48.dp) { iconSize ->
+            MetricGlyph(metric = metric, value = value, range = range, tint = metric.accent, size = iconSize)
+        }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(metric.label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
