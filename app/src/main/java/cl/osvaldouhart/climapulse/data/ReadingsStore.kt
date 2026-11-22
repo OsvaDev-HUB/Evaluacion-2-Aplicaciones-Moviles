@@ -4,11 +4,13 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
@@ -36,6 +38,12 @@ class ReadingsStore(
     val history: Flow<List<EnvironmentReading>> = uid.flatMapLatest { uid ->
         if (uid == null) flowOf(emptyList()) else recentReadings(uid)
     }
+
+    // Lecturas que están guardadas en el teléfono pero todavía no llegan a Firestore
+    // (por ejemplo, sin internet). Firestore las sube solas cuando vuelve la conexión.
+    val pendingSync: Flow<Int> = uid.flatMapLatest { uid ->
+        if (uid == null) flowOf(0) else pendingWrites(uid)
+    }.distinctUntilChanged()
 
     // Sin await: Firestore la guarda primero en el teléfono y la sube cuando hay conexión.
     fun add(reading: EnvironmentReading) {
@@ -92,6 +100,17 @@ class ReadingsStore(
                 val list = snapshot.documents.mapNotNull { it.toReading() }
                 oldestShownMillis = if (list.size >= MAX_HISTORY) list.last().timestampMillis else null
                 trySend(list)
+            }
+        awaitClose { registration.remove() }
+    }
+
+    private fun pendingWrites(uid: String): Flow<Int> = callbackFlow {
+        // MetadataChanges.INCLUDE avisa también cuando una escritura pendiente se confirma en el servidor.
+        val registration = lecturas(uid)
+            .orderBy("fecha", Query.Direction.DESCENDING)
+            .limit(MAX_HISTORY.toLong())
+            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, _ ->
+                trySend(snapshot?.documents?.count { it.metadata.hasPendingWrites() } ?: 0)
             }
         awaitClose { registration.remove() }
     }

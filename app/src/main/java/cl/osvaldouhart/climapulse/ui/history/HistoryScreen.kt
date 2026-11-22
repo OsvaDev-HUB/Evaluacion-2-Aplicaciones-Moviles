@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.rounded.TrendingDown
 import androidx.compose.material.icons.automirrored.rounded.TrendingFlat
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +89,7 @@ fun HistoryScreen(viewModel: HistoryViewModel = viewModel(factory = HistoryViewM
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val ranges by viewModel.ranges.collectAsStateWithLifecycle()
+    val pendingSync by viewModel.pendingSync.collectAsStateWithLifecycle()
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     // Métrica que se muestra en la tarjeta principal.
     var selected by rememberSaveable { mutableStateOf(Metric.TEMPERATURE) }
@@ -120,6 +122,26 @@ fun HistoryScreen(viewModel: HistoryViewModel = viewModel(factory = HistoryViewM
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                // Sin internet las mediciones quedan en el teléfono y se suben solas al volver la conexión.
+                if (pendingSync > 0) {
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Rounded.CloudUpload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            if (pendingSync == 1) "1 medición por sincronizar" else "$pendingSync mediciones por sincronizar",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
             }
             if (state is UiState.Success) {
                 IconButton(onClick = { confirmClear = true }) {

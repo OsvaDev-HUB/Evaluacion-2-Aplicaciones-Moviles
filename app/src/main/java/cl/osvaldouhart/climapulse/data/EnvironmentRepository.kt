@@ -26,6 +26,9 @@ class EnvironmentRepository(
     /** Lecturas que llegan en tiempo real desde el sensor. */
     val liveReadings: Flow<EnvironmentReading> = link.readings
 
+    /** Lecturas guardadas en el teléfono que esperan subir a Firestore. */
+    val pendingSync: Flow<Int> = readings.pendingSync
+
     val idealRanges: Flow<Map<Metric, IdealRange>> = dataStore.data.map { prefs ->
         Metric.entries.associateWith { metric ->
             prefs[rangeKey(metric)]?.let { runCatching { json.decodeFromString<IdealRange>(it) }.getOrNull() }
