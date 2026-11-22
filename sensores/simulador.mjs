@@ -1,9 +1,9 @@
 // Simulador del nodo sensor ESP8266 para probar la app sin la placa.
 // Habla el mismo protocolo que sensores.ino (version 2): puerto 5050, una linea por mensaje,
-// JSON cifrado con AES-GCM y llave PBKDF2-SHA256 sacada del PIN, con sesion y contador
+// JSON cifrado con AES-GCM y llave PBKDF2-SHA256 sacada de la clave del sensor, con sesion y contador
 // contra mensajes repetidos, lecturas guardadas sin conexion, avisos y latido.
 //
-// Uso:  node sensores/simulador.mjs [--pin 123456] [--puerto 5050] [--intervalo 3000]
+// Uso:  node sensores/simulador.mjs [--clave cambia-esta-clave-2026] [--puerto 5050] [--intervalo 3000] [--guardar 15000]
 // En el emulador de Android la IP del PC es 10.0.2.2. En un telefono real usa la IP
 // del PC en la misma red WiFi (o buscalo en la app si avahi esta activo).
 
@@ -20,7 +20,12 @@ function opcion(nombre, porDefecto) {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : porDefecto;
 }
 
-const PIN = opcion("pin", "123456");
+const PIN = opcion("clave", opcion("pin", "cambia-esta-clave-2026"));
+// Misma regla que la app y el sketch: 10 a 32 caracteres ASCII, sin espacios, con letras y numeros.
+if (!/^[\x21-\x7e]{10,32}$/.test(PIN) || !/[a-zA-Z]/.test(PIN) || !/[0-9]/.test(PIN)) {
+  console.error("La clave debe tener 10 a 32 caracteres, sin espacios ni tildes, con letras y numeros.");
+  process.exit(1);
+}
 const PUERTO = Number(opcion("puerto", 5050));
 const INTERVALO = Number(opcion("intervalo", 3000));
 const INTERVALO_AHORRO = 10000;
@@ -41,7 +46,7 @@ function cifrar(texto) {
   return Buffer.concat([iv, datos, cifrador.getAuthTag()]).toString("base64");
 }
 
-// Devuelve null si el PIN no coincide o el mensaje fue modificado
+// Devuelve null si la clave no coincide o el mensaje fue modificado
 function descifrar(linea) {
   try {
     const bytes = Buffer.from(linea.trim(), "base64");
@@ -166,7 +171,7 @@ function enviarHistorial(monitor) {
 function procesarLinea(monitor, linea) {
   const texto = descifrar(linea);
   if (texto === null) {
-    console.log("Mensaje rechazado: PIN incorrecto o mensaje alterado.");
+    console.log("Mensaje rechazado: clave incorrecta o mensaje alterado.");
     monitor.socket.destroy();
     return;
   }
@@ -404,7 +409,7 @@ servidor.listen(PUERTO, "0.0.0.0", () => {
     .map((d) => d.address);
   console.log("ClimaPulse: simulador del nodo sensor");
   console.log(`  IP:  ${ips.join(", ") || "sin red"}  (emulador: 10.0.2.2)`);
-  console.log(`  Puerto: ${PUERTO} | PIN: ${PIN}`);
+  console.log(`  Puerto: ${PUERTO} | Clave: ${PIN}`);
   anunciar();
   ayuda();
 });

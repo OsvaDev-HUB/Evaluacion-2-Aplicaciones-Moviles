@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.osvaldouhart.climapulse.data.Actuators
 import cl.osvaldouhart.climapulse.data.FoundSensor
+import cl.osvaldouhart.climapulse.data.LinkCrypto
 import cl.osvaldouhart.climapulse.data.LinkRole
 import cl.osvaldouhart.climapulse.data.LinkState
 import cl.osvaldouhart.climapulse.data.Metric
@@ -174,7 +175,7 @@ fun SensorScreen(viewModel: SensorViewModel = viewModel(factory = SensorViewMode
             InfoRow(
                 Icons.Rounded.Lock,
                 "Mensajes cifrados (AES-GCM)",
-                "La llave se crea a partir del PIN del ESP8266. Sin el PIN no se pueden leer las lecturas ni controlar el sensor."
+                "La llave se crea a partir de la clave del sensor (mínimo 10 caracteres con letras y números). Sin ella no se pueden leer las lecturas ni controlar el sensor."
             )
             InfoRow(
                 Icons.Rounded.VerifiedUser,
@@ -282,10 +283,10 @@ private fun MonitorForm(viewModel: SensorViewModel, found: List<FoundSensor>, co
     )
     ClimaTextField(
         value = viewModel.pin,
-        // Solo números y máximo 6 dígitos.
-        onValueChange = { text -> viewModel.pin = text.filter { it.isDigit() }.take(6) },
-        label = "PIN de 6 dígitos",
-        keyboardType = KeyboardType.NumberPassword,
+        // Sin espacios y con el largo máximo que acepta el sensor.
+        onValueChange = { text -> viewModel.pin = text.filterNot { it.isWhitespace() }.take(LinkCrypto.MAX_KEY_LENGTH) },
+        label = "Clave del sensor",
+        keyboardType = KeyboardType.Password,
         imeAction = ImeAction.Done,
         onImeAction = viewModel::connect,
         leadingIcon = Icons.Rounded.Key,

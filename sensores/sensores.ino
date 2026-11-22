@@ -1,7 +1,7 @@
 // Nodo sensor de ClimaPulse para ESP8266 (NodeMCU).
 // Lee el DHT11 y el LDR, y envia las lecturas por WiFi a la app (modo Monitor).
 // Usa el mismo enlace que la app: puerto 5050, mensajes JSON cifrados con AES-GCM
-// y una llave que sale del PIN (PBKDF2 con SHA-256).
+// y una llave que sale de la clave del sensor (PBKDF2 con SHA-256).
 //
 // Protocolo (version 2):
 // - La app saluda con "hola" y un reto aleatorio. El nodo responde "bienvenida" con el mismo
@@ -21,7 +21,9 @@
 #include <bearssl/bearssl.h>
 #include <base64.h>
 #include <libb64/cdecode.h>
-#include "config.h"  // WIFI_NOMBRE, WIFI_CLAVE y PIN_ENLACE
+#include "config.h"  // WIFI_NOMBRE, WIFI_CLAVE y CLAVE_ENLACE
+
+#include "clave.h"   // revisa al compilar que la clave del enlace sea segura
 
 // Pines
 constexpr uint8_t PIN_DHT = D1;
@@ -56,13 +58,13 @@ const char* NOMBRE_NODO = "ClimaPulse ESP8266";
 
 DHT dht(PIN_DHT, DHT11);
 WiFiServer servidor(PUERTO);
-uint8_t llave[32];  // llave AES de 256 bits creada a partir del PIN
+uint8_t llave[32];  // llave AES de 256 bits creada a partir de la clave
 
 // Un telefono conectado en modo Monitor
 struct Monitor {
   WiFiClient cliente;
   String linea;               // texto recibido que aun no termina en salto de linea
-  bool saludo;                // true cuando ya mando "hola" con el PIN correcto
+  bool saludo;                // true cuando ya mando "hola" con la clave correcta
   unsigned long conectadoEn;
   String sesion;              // numero de sesion de esta conexion
   uint32_t enviados;          // contador de mensajes que manda el nodo
@@ -106,7 +108,7 @@ String entradaSerie = "";
 void crearLlave() {
   const char* sal = "climapulse-enlace-wifi";
   br_hmac_key_context claveHmac;
-  br_hmac_key_init(&claveHmac, &br_sha256_vtable, PIN_ENLACE, strlen(PIN_ENLACE));
+  br_hmac_key_init(&claveHmac, &br_sha256_vtable, CLAVE_ENLACE, strlen(CLAVE_ENLACE));
 
   br_hmac_context hmac;
   uint8_t u[32];
@@ -150,7 +152,7 @@ String cifrar(const String& texto) {
   return linea;
 }
 
-// Devuelve false si el PIN no coincide o el mensaje fue modificado
+// Devuelve false si la clave no coincide o el mensaje fue modificado
 bool descifrar(const String& linea, String& texto) {
   uint8_t* datos = (uint8_t*)malloc(linea.length() + 1);
   if (datos == nullptr) return false;
@@ -446,7 +448,7 @@ void procesarLinea(int indice) {
   Monitor& monitor = monitores[indice];
   String texto;
   if (!descifrar(monitor.linea, texto)) {
-    Serial.println("Mensaje rechazado: PIN incorrecto o mensaje alterado.");
+    Serial.println("Mensaje rechazado: clave incorrecta o mensaje alterado.");
     desconectar(indice);
     return;
   }
@@ -537,8 +539,8 @@ void anunciarEnRed() {
     MDNS.addService("climapulse", "tcp", PUERTO);
   }
   Serial.println("Listo. Datos para la app (modo Monitor):");
-  Serial.println("  IP:  " + WiFi.localIP().toString());
-  Serial.println("  PIN: " + String(PIN_ENLACE));
+  Serial.println("  IP:    " + WiFi.localIP().toString());
+  Serial.println("  Clave: la de CLAVE_ENLACE en config.h (escribe \"estado\" para verla)");
 }
 
 // Revisa el WiFi sin bloquear: si se corta, reintenta cada 10 s y sigue midiendo y guardando.
@@ -574,6 +576,7 @@ void revisarWifi() {
 void mostrarEstado() {
   Serial.printf("WiFi: %s | IP: %s | Senal: %d dBm\n", wifiListo ? "conectado" : "sin conexion",
                 WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  Serial.println("Clave del enlace: " + String(CLAVE_ENLACE));
   Serial.printf("Monitores: %d | Guardadas: %d | Ventilador: %d | Lampara: %d | Pausa: %d | Ahorro: %d\n",
                 monitoresActivos(), totalGuardadas, ventilador, lampara, pausado, ahorro);
 }
@@ -625,7 +628,7 @@ void setup() {
   pinMode(PIN_LAMPARA, OUTPUT);
   dht.begin();
 
-  Serial.println("Creando la llave a partir del PIN...");
+  Serial.println("Creando la llave a partir de la clave...");
   crearLlave();
 
   WiFi.mode(WIFI_STA);
@@ -665,6 +668,6 @@ void loop() {
   static unsigned long ultimoAviso = 0;
   if (millis() - ultimoAviso >= 30000) {
     ultimoAviso = millis();
-    if (wifiListo) Serial.println("IP: " + WiFi.localIP().toString() + " | PIN: " + String(PIN_ENLACE));
+    if (wifiListo) Serial.println("IP: " + WiFi.localIP().toString());
   }
 }

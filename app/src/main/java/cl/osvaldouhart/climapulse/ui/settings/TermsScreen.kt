@@ -22,7 +22,7 @@ private val sections = listOf(
     "2. Tu cuenta" to "Eres responsable de mantener la confidencialidad de tus credenciales. La cuenta la protege Firebase Authentication: puedes cerrar sesión, cambiar tu contraseña o eliminar tu cuenta y tus datos desde Perfil.",
     "3. Datos y privacidad" to "Tu perfil y tus mediciones se guardan en tu cuenta en Firebase (Google Cloud) y solo tú puedes verlos. Las preferencias quedan en tu teléfono. No vendemos ni compartimos tu información con terceros.",
     "4. Notificaciones" to "Solo enviamos alertas cuando una lectura sale de tu rango ideal. Puedes desactivarlas en cualquier momento desde Ajustes.",
-    "5. Enlace con el sensor" to "Por el WiFi entre tu teléfono y el sensor solo viajan lecturas, comandos y el modelo de tu teléfono, cifrados con el PIN del sensor. No se envía tu nombre, tu correo ni tu ubicación.",
+    "5. Enlace con el sensor" to "Por el WiFi entre tu teléfono y el sensor solo viajan lecturas, comandos y el modelo de tu teléfono, cifrados con la clave del sensor. No se envía tu nombre, tu correo ni tu ubicación.",
     "6. Cambios" to "Podemos actualizar estos términos. Te avisaremos dentro de la app antes de que los cambios entren en vigencia."
 )
 
