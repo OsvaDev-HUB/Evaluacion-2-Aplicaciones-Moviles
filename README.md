@@ -105,7 +105,9 @@ Para cargar el programa:
 
 En el monitor serie también se pueden escribir comandos: `ventilador on|off`, `lampara on|off`, `pausa on|off`, `ahorro on|off` y `estado`. Los cambios le llegan a la app al tiro.
 
-Si el WiFi se cae, el nodo sigue midiendo, guarda una lectura cada 15 segundos (hasta 240, una hora) y reintenta conectarse cada 10 segundos.
+Si el WiFi se cae, el nodo sigue midiendo, guarda una lectura cada 15 segundos (hasta 240, una hora) y reintenta conectarse cada 10 segundos. En el monitor serie dice por qué no conecta, por ejemplo `Reintentando WiFi (clave incorrecta)...` o `(no se encuentra la red)`.
+
+**Potencia del WiFi**: está en 12 dBm (`POTENCIA_WIFI` en el sketch, el máximo es 20.5). Al probar con la placa real a toda potencia, los picos de corriente del radio bajaban el voltaje del puerto USB y el ESP8266 se reiniciaba solo (`wdt reset` en el monitor serie). Con 12 dBm no se reinicia, la señal sigue sobre -55 dBm con el router en la misma sala y además gasta menos. Si el sensor queda lejos del router, se puede subir la potencia usando un cargador de pared de 1 A o más.
 
 La luz se envía en una escala de 0 a 1000 (no son lux exactos). Si la luz sube al tapar el LDR, cambia `INVERTIR_LUZ` en el sketch.
 
@@ -116,6 +118,7 @@ La luz se envía en una escala de 0 a 1000 (no son lux exactos). Si la luz sube 
 - **Recuperar contraseña**: Firebase envía un enlace para crear una nueva. No se avisa si el correo no tiene cuenta, para que nadie pueda averiguar qué correos están registrados.
 - **Cambiar contraseña** (Perfil → Seguridad): pide la contraseña actual antes de cambiarla. Solo aparece en cuentas con contraseña.
 - **Eliminar cuenta** (Perfil → Seguridad): pide la contraseña o elegir de nuevo la cuenta de Google, y borra las lecturas, el perfil y la cuenta.
+- **Huella**: se activa en Perfil. Se pide al abrir la app y también al volver a ella después de **1 minuto o más** en segundo plano o con la pantalla apagada (`MainViewModel.shouldLockOnReturn`). El tiempo se mide con el reloj interno del sistema, así que cambiar la hora del teléfono no la salta. Si se cancela, se puede entrar con la contraseña.
 - La página para verificar el correo y cambiar la contraseña desde el enlace está en `web/accion/` (Firebase Hosting).
 
 Todo esto está en `data/SessionRepository.kt`.
@@ -131,6 +134,7 @@ Todo esto está en `data/SessionRepository.kt`.
 | **Reglas de Firestore**: cada usuario solo ve y cambia sus datos; se valida el tipo, el rango y el largo de cada campo; las lecturas no se pueden editar; todo lo demás está cerrado | `firestore.rules` |
 | **App Check** (Play Integrity en release) para que Firebase reconozca la app original | `ClimaPulseApplication.kt`, `src/debug` y `src/release` |
 | Huella con **CryptoObject**: una llave AES del Keystore que solo se libera con una huella fuerte. Si se agrega una huella nueva en Android, la llave se invalida | `data/BiometricKey.kt`, `ui/auth/Biometric.kt` |
+| La app se **bloquea de nuevo** si pasa 1 minuto o más en segundo plano: al volver pide la huella | `MainViewModel.kt`, `ui/navigation/AppNavHost.kt` |
 | Enlace WiFi cifrado con **AES-GCM**; la llave sale de la clave del sensor (PBKDF2). Sin la clave no se pueden leer ni enviar comandos | `data/LinkCrypto.kt`, `sensores/sensores.ino` |
 | **Clave del enlace robusta**: 10 a 32 caracteres con letras y números. Con un PIN de 6 dígitos hay un millón de opciones y quien grabe el tráfico las prueba todas en segundos; con 10 caracteres son más de 10^17. Si la clave no cumple, el sketch no compila y la app no deja conectar | `sensores/clave.h`, `LinkCrypto.keyProblem` |
 | **Anti-replay** en el enlace: reto en el saludo, sesión nueva por conexión y contador que siempre sube. Un comando grabado y reenviado se descarta; la pantalla Sensor muestra cuántos se descartaron | `data/LinkSession.kt`, `sensores/sensores.ino` |
@@ -193,6 +197,7 @@ Valores aproximados sacados de las hojas de datos (ESP8266EX, DHT11 y módulo LD
 Lo que se hizo para gastar menos:
 
 - **Nodo**: el modo ahorro mide cada 10 s y deja dormir la radio entre mensajes (`WIFI_MODEM_SLEEP`). Se activa desde la app o con `ahorro on` en el monitor serie. No se usa *deep sleep* porque el nodo tiene que seguir escuchando los comandos de la app.
+- **Nodo**: la potencia del WiFi está en 12 dBm en vez de 20.5 dBm, lo que baja los picos de corriente al transmitir (y evita que la placa se reinicie con un puerto USB débil).
 - **Nodo**: cada lectura cifrada ocupa unos 300 bytes y el latido solo se manda si no hubo otro mensaje en 8 s.
 - **Teléfono**: no hay un servicio funcionando con la app cerrada. Firestore guarda una lectura cada 15 s, no cada 3. Los reintentos de conexión se espacian hasta 30 s. La búsqueda del sensor (NSD) se detiene al conectar.
 - **Teléfono**: las animaciones que se repiten se detienen solas con el ahorro de batería de Android o con "Quitar animaciones". El tema oscuro gasta menos en pantallas OLED.
@@ -205,6 +210,7 @@ Lo que se hizo para gastar menos:
 | El teléfono pierde la red | Aviso de red de Android | La app muestra "Sin conexión" con la última lectura y reintenta al volver la red | Nada |
 | Sin internet (pero con WiFi local) | Firestore no confirma las escrituras | Las lecturas se guardan en el teléfono y se suben solas después; el Historial muestra cuántas faltan | Nada |
 | El nodo se reinicia | Se corta el socket | La app se reconecta sola; los actuadores vuelven a apagado | Revisar el estado en la pestaña Sensor |
+| La placa se reinicia sola | `wdt reset` en el monitor serie, justo al usar el WiFi | La app se reconecta sola | Usar otro puerto USB, un cable más corto o un cargador de pared; o bajar `POTENCIA_WIFI` |
 | El DHT11 deja de responder | 3 lecturas seguidas fallidas | El nodo avisa a la app (tarjeta y mensaje) y sigue mandando latidos; avisa de nuevo cuando vuelve | Revisar el cable D1 y la alimentación |
 | Señal WiFi débil | RSSI bajo -80 dBm | El nodo avisa a la app | Acercar el nodo al router |
 | Se llena la memoria del nodo | Más de 240 lecturas guardadas | Se pierden las más antiguas y el nodo avisa cuántas al reconectar | Conectar un teléfono más seguido |
@@ -217,6 +223,7 @@ Límites conocidos: la memoria del nodo es RAM, así que si se corta la luz se p
 
 - **Versiones de Android**: desde Android 8.0 (API 26) hasta Android 17 (API 37, `targetSdk`). Lo que cambia entre versiones está resuelto: el permiso de notificaciones solo se pide en Android 13 o más, y la huella usa BiometricPrompt, que funciona igual en todas.
 - **Arquitecturas**: la app es Kotlin, sin código nativo propio. Las dos librerías nativas pequeñas que trae AndroidX vienen para **arm64-v8a, armeabi-v7a, x86 y x86_64**, así que el APK funciona en teléfonos ARM de 32 y 64 bits y en emuladores x86.
+- **Nodo real**: el firmware v2 se probó en un NodeMCU (ESP8266) con DHT11 y LDR conectado al HONOR: enlace cifrado, lecturas guardadas sin teléfono, guardado en Firestore, ventilador y lámpara.
 - **Probada en**: HONOR ABR-NX3 (Android 16, ARM 64 bits), moto g(100) (Android 12, ARM 64 bits) y emulador Pixel 7 (Android 14, x86_64).
 - **Sin huella fuerte**: si el teléfono no tiene un sensor de huella clase 3, la opción no aparece y se entra con la contraseña.
 - **Pantallas**: la interfaz usa Compose con medidas relativas, tema claro y oscuro, y textos que se adaptan al tamaño de letra del sistema.
