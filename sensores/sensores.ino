@@ -31,6 +31,11 @@ constexpr uint8_t PIN_LUZ = A0;          // salida AO del modulo LDR
 constexpr uint8_t PIN_VENTILADOR = D0;   // LED de la placa (aqui iria el rele del ventilador)
 constexpr uint8_t PIN_LAMPARA = D4;      // LED del ESP8266 (aqui iria el rele de la lampara)
 
+// Potencia del WiFi en dBm (maximo 20.5). A toda potencia los picos de corriente del radio
+// botaban el voltaje del puerto USB y la placa se reiniciaba (wdt reset). Con 12 dBm
+// alcanza de sobra si el router esta en la misma sala y ademas gasta menos.
+constexpr float POTENCIA_WIFI = 12;
+
 // Si la luz sube cuando tapas el LDR, cambia esto a false.
 constexpr bool INVERTIR_LUZ = true;
 
@@ -543,6 +548,18 @@ void anunciarEnRed() {
   Serial.println("  Clave: la de CLAVE_ENLACE en config.h (escribe \"estado\" para verla)");
 }
 
+// Explica en palabras por que no hay WiFi, para verlo en el monitor serie.
+const char* motivoWifi() {
+  switch (WiFi.status()) {
+    case WL_NO_SSID_AVAIL: return "no se encuentra la red";
+    case WL_WRONG_PASSWORD: return "clave incorrecta";
+    case WL_CONNECT_FAILED: return "la red rechazo la conexion";
+    case WL_IDLE_STATUS: return "conectando";
+    case WL_DISCONNECTED: return "desconectado";
+    default: return "otro motivo";
+  }
+}
+
 // Revisa el WiFi sin bloquear: si se corta, reintenta cada 10 s y sigue midiendo y guardando.
 void revisarWifi() {
   if (WiFi.status() == WL_CONNECTED) {
@@ -566,7 +583,9 @@ void revisarWifi() {
   }
   if (millis() - ultimoIntentoWifi >= INTERVALO_WIFI) {
     ultimoIntentoWifi = millis();
-    Serial.println("Reintentando WiFi...");
+    Serial.print("Reintentando WiFi (");
+    Serial.print(motivoWifi());
+    Serial.println(")...");
     WiFi.reconnect();
   }
 }
@@ -635,6 +654,7 @@ void setup() {
   WiFi.persistent(false);
   WiFi.setAutoReconnect(true);
   aplicarActuadores();
+  WiFi.setOutputPower(POTENCIA_WIFI);
   WiFi.begin(WIFI_NOMBRE, WIFI_CLAVE);
   Serial.print("Conectando a ");
   Serial.print(WIFI_NOMBRE);
