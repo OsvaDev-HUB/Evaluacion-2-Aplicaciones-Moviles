@@ -9,12 +9,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import kotlinx.coroutines.launch
 import cl.osvaldouhart.climapulse.data.StartDestination
 import cl.osvaldouhart.climapulse.ui.auth.LoginScreen
 import cl.osvaldouhart.climapulse.ui.auth.RecoveryScreen
@@ -31,8 +36,24 @@ import cl.osvaldouhart.climapulse.ui.settings.EditProfileScreen
 import cl.osvaldouhart.climapulse.ui.settings.TermsScreen
 
 @Composable
-fun ClimaPulseNavHost(startDestination: StartDestination) {
+fun ClimaPulseNavHost(
+    startDestination: StartDestination,
+    onAppStopped: () -> Unit = {},
+    shouldLockOnReturn: suspend () -> Boolean = { false }
+) {
     val navController = rememberNavController()
+    val lockScope = rememberCoroutineScope()
+
+    // Si la app estuvo un minuto o mas en segundo plano, se vuelve a pedir la huella.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { onAppStopped() }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        lockScope.launch {
+            val destination = navController.currentDestination
+            if (destination != null && destination.isInsideApp() && shouldLockOnReturn()) {
+                navController.clearAndNavigate(LoginRoute(biometricUnlock = true))
+            }
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val messengerScope = rememberCoroutineScope()
     val messenger = remember { Messenger(snackbarHostState, messengerScope) }
@@ -118,6 +139,11 @@ private fun NavHostController.clearAndNavigate(route: Any) {
         launchSingleTop = true
     }
 }
+
+// Pantallas que se ven con la sesion abierta (en login, registro o bienvenida no hay nada que bloquear).
+private fun NavDestination.isInsideApp(): Boolean =
+    !hasRoute<OnboardingRoute>() && !hasRoute<LoginRoute>() && !hasRoute<RegisterRoute>() &&
+        !hasRoute<RecoveryRoute>() && !hasRoute<VerifyEmailRoute>()
 
 /** Convierte el destino que decide el Router en la ruta de navegación. */
 private fun routeFor(destination: StartDestination): Any = when (destination) {

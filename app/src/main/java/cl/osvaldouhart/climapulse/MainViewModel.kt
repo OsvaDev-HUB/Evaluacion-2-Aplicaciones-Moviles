@@ -1,5 +1,6 @@
 package cl.osvaldouhart.climapulse
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cl.osvaldouhart.climapulse.data.SessionRepository
@@ -11,6 +12,7 @@ import cl.osvaldouhart.climapulse.ui.appViewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -37,8 +39,25 @@ class MainViewModel(private val session: SessionRepository) : ViewModel() {
         }
     }
 
+    // Momento en que la app paso a segundo plano. Se usa elapsedRealtime y no la hora del
+    // telefono, asi cambiar el reloj no sirve para saltarse el bloqueo.
+    private var stoppedAt: Long? = null
+
+    fun onAppStopped() {
+        stoppedAt = SystemClock.elapsedRealtime()
+    }
+
+    // true si la app estuvo un minuto o mas en segundo plano y el usuario tiene la huella activada.
+    suspend fun shouldLockOnReturn(): Boolean {
+        val stopped = stoppedAt ?: return false
+        stoppedAt = null
+        if (SystemClock.elapsedRealtime() - stopped < LOCK_AFTER_MILLIS) return false
+        return session.hasStoredSession() && session.biometricEnabled.first()
+    }
+
     companion object {
         const val MIN_SPLASH_MILLIS = 1_200L
+        const val LOCK_AFTER_MILLIS = 60_000L
 
         val Factory = appViewModelFactory { container, _ -> MainViewModel(container.sessionRepository) }
     }

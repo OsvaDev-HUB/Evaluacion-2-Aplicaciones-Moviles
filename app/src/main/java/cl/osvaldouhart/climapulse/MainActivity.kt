@@ -57,7 +57,13 @@ class MainActivity : FragmentActivity() {
                 val startDestination by viewModel.startDestination.collectAsStateWithLifecycle()
                 // Surface raíz: define fondo y color de contenido por defecto (onBackground).
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    startDestination?.let { ClimaPulseNavHost(startDestination = it) }
+                    startDestination?.let {
+                        ClimaPulseNavHost(
+                            startDestination = it,
+                            onAppStopped = viewModel::onAppStopped,
+                            shouldLockOnReturn = viewModel::shouldLockOnReturn
+                        )
+                    }
                 }
             }
         }
